@@ -1,0 +1,6 @@
+{
+  "name": "Johanna Uroh Portfolio & CMS",
+  "description": "Dynamic, database-driven personal portfolio and content management system for Johanna Uroh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
