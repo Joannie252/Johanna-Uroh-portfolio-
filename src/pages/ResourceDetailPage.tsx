@@ -85,7 +85,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
           </p>
           <Link
             to="/resources"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 text-white font-semibold text-xs hover:bg-purple-700 transition-colors mt-2"
+            className="btn-neon-primary px-5 py-2.5 text-xs font-semibold inline-flex items-center gap-2 mt-2"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Digital Resources</span>
@@ -109,7 +109,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
         <div className="mb-8">
           <Link
             to="/resources"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+            className="link-neon text-xs sm:text-sm font-semibold"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Digital Resources</span>
@@ -248,7 +248,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
                     href={product.previewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-xl bg-white dark:bg-zinc-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-zinc-700 border border-purple-200 dark:border-purple-800 font-semibold text-xs transition-colors flex items-center gap-2 shadow-sm shrink-0"
+                    className="btn-neon-secondary px-4 py-2.5 text-xs font-semibold shrink-0"
                   >
                     <span>Open Sample Preview</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -284,7 +284,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
                   href={product.purchaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-base shadow-xl shadow-purple-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 text-center"
+                  className="w-full py-4 rounded-2xl btn-neon-primary neon-pulse font-bold text-base shadow-xl flex items-center justify-center gap-2.5 text-center"
                 >
                   <span>{product.price === 0 ? 'Get Free Resource' : 'Get Instant Access'}</span>
                   <ExternalLink className="w-4 h-4" />
@@ -327,7 +327,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
               </p>
               <Link
                 to="/contact"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                className="link-neon text-xs font-semibold"
               >
                 <span>Contact for team licenses</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -350,7 +350,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
               </div>
               <Link
                 to="/resources"
-                className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                className="link-neon text-xs sm:text-sm font-semibold"
               >
                 <span>View all</span>
                 <ArrowRight className="w-4 h-4" />

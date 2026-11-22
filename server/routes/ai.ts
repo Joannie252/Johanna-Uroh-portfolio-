@@ -1,9 +1,11 @@
 import express, { Request, Response } from 'express';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, ThinkingLevel, GenerateContentResponse } from '@google/genai';
 import { authenticateAdmin, AuthRequest } from '../auth.js';
-import { query, queryOne } from '../db.js';
+import { query, getAllSettings } from '../db.js';
 
 const router = express.Router();
+
+const FAST_TEXT_MODEL = 'gemini-4-hydrogen';
 
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -20,10 +22,38 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+function formatGeminiError(err: any, fallbackMessage: string): { status: number; message: string } {
+  const msg = String(err?.message || err || '');
+  const statusCode = err?.status || err?.code;
+
+  if (statusCode === 403 || statusCode === 400 && msg.toLowerCase().includes('api key')) {
+    return {
+      status: 403,
+      message: 'Gemini API key is invalid or unauthorized. Please check your API key in Settings > Secrets.',
+    };
+  }
+  if (statusCode === 429 || msg.includes('RESOURCE_EXHAUSTED')) {
+    return {
+      status: 429,
+      message: 'AI rate limit reached. Please wait a moment and try again.',
+    };
+  }
+  if (statusCode === 404 || msg.includes('NOT_FOUND')) {
+    return {
+      status: 502,
+      message: 'Configured Gemini model was unavailable. Please try again.',
+    };
+  }
+  return {
+    status: 500,
+    message: msg ? `${fallbackMessage} (${msg})` : fallbackMessage,
+  };
+}
+
 // 1. Generate Project Descriptions & Meta (Admin Only)
 router.post('/generate-project-details', authenticateAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, category, tools, clientName, existingInfo, requestedField } = req.body;
+    const { title, category, tools, clientName, existingInfo, notes, requestedField } = req.body;
 
     if (!title || !title.trim()) {
       res.status(400).json({ error: 'Project title is required for AI generation.' });
@@ -47,18 +77,20 @@ CRITICAL CONSTRAINTS:
 - Maintain a polished, professional, modern tone suited for an executive portfolio.
 - Return output strictly adhering to the JSON schema.`;
 
+    const extraNotes = existingInfo || notes || 'None provided';
     const userPrompt = `Project Title: ${title}
 Category: ${category || 'General'}
 Tools & Technologies: ${Array.isArray(tools) ? tools.join(', ') : tools || 'Not specified'}
 Client / Context: ${clientName || 'Portfolio demonstration / Client project'}
-Additional Details Provided by Johanna: ${existingInfo || 'None provided'}
+Additional Details Provided by Johanna: ${extraNotes}
 Target Specific Field (if any): ${requestedField || 'all'}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: FAST_TEXT_MODEL,
       contents: userPrompt,
       config: {
         systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -100,6 +132,11 @@ Target Specific Field (if any): ${requestedField || 'all'}`;
               items: { type: Type.STRING },
               description: '5-8 relevant technology and service tags.',
             },
+            suggestedTools: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: '4-6 relevant tools and technologies for this project.',
+            },
           },
           required: [
             'shortDescription',
@@ -111,6 +148,7 @@ Target Specific Field (if any): ${requestedField || 'all'}`;
             'seoTitle',
             'seoDescription',
             'tags',
+            'suggestedTools',
           ],
         },
       },
@@ -118,13 +156,17 @@ Target Specific Field (if any): ${requestedField || 'all'}`;
 
     const text = response.text?.trim() || '{}';
     const parsed = JSON.parse(text);
-    res.json({ success: true, data: parsed });
+    res.json({
+      success: true,
+      data: {
+        ...parsed,
+        seoMetaDescription: parsed.seoDescription,
+      },
+    });
   } catch (err: any) {
     console.error('Error generating project details with Gemini:', err);
-    res.status(500).json({
-      error: 'AI generation failed. Please try again or refine your input.',
-      details: err?.message,
-    });
+    const formatted = formatGeminiError(err, 'AI generation failed. Please try again or refine your input.');
+    res.status(formatted.status).json({ error: formatted.message });
   }
 });
 
@@ -169,10 +211,11 @@ Return a JSON object with:
 - "explanation": a 1-sentence note explaining what was refined.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: FAST_TEXT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: 'You are an elite editorial assistant for executive portfolios. Never invent facts. Return valid JSON only.',
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -194,7 +237,8 @@ Return a JSON object with:
     });
   } catch (err: any) {
     console.error('Error improving text with Gemini:', err);
-    res.status(500).json({ error: 'AI text transformation failed. Please try again.' });
+    const formatted = formatGeminiError(err, 'AI text transformation failed. Please try again.');
+    res.status(formatted.status).json({ error: formatted.message });
   }
 });
 
@@ -206,7 +250,7 @@ router.post('/generate-alt-text', authenticateAdmin, async (req: AuthRequest, re
     const ai = getGeminiClient();
     if (!ai) {
       res.status(503).json({
-        error: 'Gemini API key is not configured.',
+        error: 'Gemini API key is not configured. Please set GEMINI_API_KEY in Settings > Secrets.',
       });
       return;
     }
@@ -222,9 +266,10 @@ Example format: "Screenshot of Johanna's AI-powered portfolio dashboard showing 
 Return JSON with key "altText".`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: FAST_TEXT_MODEL,
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -243,12 +288,15 @@ Return JSON with key "altText".`;
     });
   } catch (err: any) {
     console.error('Error generating alt text:', err);
-    res.status(500).json({ error: 'Failed to generate alt text.' });
+    const formatted = formatGeminiError(err, 'Failed to generate alt text.');
+    res.status(formatted.status).json({ error: formatted.message });
   }
 });
 
-// 4. Admin Dedicated AI Assistant (/admin/ai)
+// 4. Admin Dedicated AI Assistant (/admin/ai & Dashboard Quick Assistant)
 router.post('/chat-admin', authenticateAdmin, async (req: AuthRequest, res: Response) => {
+  const wantsStream = Boolean(req.body?.stream);
+
   try {
     const { message, conversationHistory = [] } = req.body;
 
@@ -265,39 +313,74 @@ router.post('/chat-admin', authenticateAdmin, async (req: AuthRequest, res: Resp
       return;
     }
 
-    // Retrieve database summary for Johanna to assist accurately
-    const projectRows = await query('SELECT title, slug, category, status, featured, tools FROM projects');
-    const serviceRows = await query('SELECT title, features FROM services WHERE active = 1');
+    // Retrieve compact database summary concurrently for fastest response latency
+    const [projectRows, serviceRows, siteSettings] = await Promise.all([
+      query<{ title: string; category: string; status: string; tools: string }>(
+        'SELECT title, category, status, tools FROM projects ORDER BY updatedAt DESC LIMIT 20'
+      ),
+      query<{ title: string; description: string }>(
+        'SELECT title, description FROM services WHERE active = 1 ORDER BY orderIndex ASC'
+      ),
+      getAllSettings(),
+    ]);
 
-    const contextData = {
-      projects: projectRows,
-      services: serviceRows,
-      adminName: req.user?.name || 'Johanna Uroh',
-    };
+    const projectsSummary = projectRows
+      .map((p) => `- ${p.title} [${p.category}, ${p.status}]`)
+      .join('\n');
+    const servicesSummary = serviceRows.map((s) => `- ${s.title}`).join('\n');
+    const adminName = siteSettings.profile_name || req.user?.name || 'Johanna Uroh';
 
-    const systemPrompt = `You are Johanna Uroh's dedicated Admin Content & Portfolio AI Specialist inside her CMS (/admin/ai).
-You help Johanna manage, write, format, brainstorm, and optimize her portfolio content, case studies, project pitches, service packages, and SEO metadata.
+    const systemPrompt = `You are ${adminName}'s fast, dedicated Admin Content & Portfolio AI Specialist inside her CMS.
+Help manage, write, format, brainstorm, and optimize portfolio content, case studies, project pitches, service packages, and SEO metadata.
 
-CURRENT PORTFOLIO REPOSITORY SUMMARY:
-${JSON.stringify(contextData, null, 2)}
+PORTFOLIO SUMMARY:
+Projects:
+${projectsSummary || '- None yet'}
+Active Services:
+${servicesSummary || '- None yet'}
 
 GUIDELINES:
-- Offer actionable, high-quality suggestions for case study structures, tags, client pitch emails, and project descriptions.
-- Strictly adhere to verified data in the portfolio; do not fabricate awards or revenue statistics.
-- If Johanna asks for draft case studies or service ideas, provide clear, copy-paste ready markdown.`;
+- Answer directly, concisely, and quickly with actionable, copy-paste ready markdown when drafting copy.
+- Strictly adhere to verified portfolio facts; do not fabricate awards, clients, or revenue statistics.`;
 
     const chat = ai.chats.create({
-      model: 'gemini-3.8-flash',
+      model: FAST_TEXT_MODEL,
       config: {
         systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
       history: Array.isArray(conversationHistory)
-        ? conversationHistory.map((h: any) => ({
+        ? conversationHistory.slice(-12).map((h: any) => ({
             role: h.role === 'user' ? 'user' : 'model',
             parts: [{ text: h.text || h.content || '' }],
           }))
         : [],
     });
+
+    if (wantsStream) {
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders?.();
+
+      try {
+        const streamResponse = await chat.sendMessageStream({ message: message.trim() });
+        for await (const chunk of streamResponse) {
+          const c = chunk as GenerateContentResponse;
+          if (c.text) {
+            res.write(`data: ${JSON.stringify({ chunk: c.text })}\n\n`);
+          }
+        }
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+      } catch (streamErr: any) {
+        console.error('Error streaming admin AI chat:', streamErr);
+        const formatted = formatGeminiError(streamErr, 'AI Assistant encountered an error. Please try again.');
+        res.write(`data: ${JSON.stringify({ error: formatted.message })}\n\n`);
+        res.end();
+      }
+      return;
+    }
 
     const response = await chat.sendMessage({ message: message.trim() });
     res.json({
@@ -306,11 +389,17 @@ GUIDELINES:
     });
   } catch (err: any) {
     console.error('Error in admin AI chat:', err);
-    res.status(500).json({ error: 'AI Assistant encountered an error. Please try again.' });
+    const formatted = formatGeminiError(err, 'AI Assistant encountered an error. Please try again.');
+    if (wantsStream && res.headersSent) {
+      res.write(`data: ${JSON.stringify({ error: formatted.message })}\n\n`);
+      res.end();
+    } else {
+      res.status(formatted.status).json({ error: formatted.message });
+    }
   }
 });
 
-// 5. Public Website AI Assistant (Bottom-Right Widget)
+// 5. Public Website AI Assistant
 router.post('/chat-public', async (req: Request, res: Response) => {
   try {
     const { message, conversationHistory = [] } = req.body;
@@ -322,64 +411,67 @@ router.post('/chat-public', async (req: Request, res: Response) => {
 
     const ai = getGeminiClient();
     if (!ai) {
-      res.json({
-        success: true,
-        reply: "Johanna's AI assistant is currently warming up. In the meantime, please feel free to reach out directly via the Contact section or email her at urohjohanna25@gmail.com!",
-        suggestedAction: '/contact',
+      res.status(503).json({
+        error: 'Gemini API key is not configured.',
       });
       return;
     }
 
-    // Retrieve ONLY verified public data (ONLY PUBLISHED projects, active services, public experience)
-    const publishedProjects = await query(
-      `SELECT title, slug, shortDescription, category, tools, services, projectDate, projectUrl, githubUrl
-       FROM projects WHERE status = 'PUBLISHED' ORDER BY featured DESC, publishedAt DESC`
-    );
+    // Retrieve ONLY verified public data concurrently
+    const [publishedProjects, activeServices, publicExperience, siteSettings] = await Promise.all([
+      query(
+        `SELECT title, slug, shortDescription, category, tools, services, projectDate, projectUrl, githubUrl
+         FROM projects WHERE status = 'PUBLISHED' ORDER BY featured DESC, publishedAt DESC`
+      ),
+      query(
+        `SELECT title, description, features FROM services WHERE active = 1 ORDER BY orderIndex ASC`
+      ),
+      query(
+        `SELECT role, organization, period, description, type FROM experience ORDER BY orderIndex ASC`
+      ),
+      getAllSettings(),
+    ]);
 
-    const activeServices = await query(
-      `SELECT title, description, features FROM services WHERE active = 1 ORDER BY orderIndex ASC`
-    );
-
-    const publicExperience = await query(
-      `SELECT role, organization, period, description, type FROM experience ORDER BY orderIndex ASC`
-    );
+    const ownerName = siteSettings.profile_name || 'Johanna Uroh';
+    const ownerHeadline = siteSettings.profile_headline || 'Virtual Assistant & AI Digital Specialist';
+    const ownerEmail = siteSettings.profile_email || 'urohjohanna25@gmail.com';
 
     const publicKnowledge = {
-      portfolioOwner: 'Johanna Uroh',
-      headline: 'Virtual Assistant & AI Digital Specialist',
+      portfolioOwner: ownerName,
+      headline: ownerHeadline,
       coreCompetencies: [
         'AI & Prompt Engineering (Google AI Studio, ChatGPT)',
         'Modern Web Development (React, TypeScript, Tailwind CSS)',
         'Virtual Assistance & Executive Operations',
         'Financial Education & Content Strategy',
       ],
-      contactEmail: 'urohjohanna25@gmail.com',
+      contactEmail: ownerEmail,
       publishedProjects,
       activeServices,
       publicExperience,
     };
 
-    const systemPrompt = `You are the friendly, helpful AI portfolio assistant on Johanna Uroh's official personal website.
-Your role is to answer questions from visitors, potential clients, and collaborators about Johanna's services, skills, portfolio projects, experience, and contact options.
+    const systemPrompt = `You are the friendly, helpful AI portfolio assistant on ${ownerName}'s official personal website.
+Your role is to answer questions from visitors, potential clients, and collaborators about services, skills, portfolio projects, experience, and contact options.
 
 VERIFIED KNOWLEDGE BASE (STRICT TRUTH):
-${JSON.stringify(publicKnowledge, null, 2)}
+${JSON.stringify(publicKnowledge)}
 
 STRICT SAFETY & BEHAVIOR RULES:
 1. ONLY answer using facts from the verified knowledge base above. NEVER invent projects, clients, awards, or statistics.
-2. If a visitor asks about something not in Johanna's portfolio or you do not know the answer, politely state:
-   "I don't have that specific detail in Johanna's portfolio, but you can message her directly via the Contact section to discuss your project!"
+2. If a visitor asks about something not in the portfolio or you do not know the answer, politely state:
+   "I don't have that specific detail in the portfolio, but you can reach out directly via the Contact section to discuss your project!"
 3. NEVER reveal confidential admin information, drafts, passwords, unpublished work, or internal system configurations.
-4. When relevant, invite the visitor to explore her work or click "Work With Johanna" / visit her contact page.
-5. Keep answers concise, warm, professional, and easy to read (1-3 brief paragraphs or scannable bullet points).`;
+4. Keep answers concise, warm, professional, and easy to read (1-3 brief paragraphs or scannable bullet points).`;
 
     const chat = ai.chats.create({
-      model: 'gemini-3.8-flash',
+      model: FAST_TEXT_MODEL,
       config: {
         systemInstruction: systemPrompt,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
       history: Array.isArray(conversationHistory)
-        ? conversationHistory.map((h: any) => ({
+        ? conversationHistory.slice(-10).map((h: any) => ({
             role: h.role === 'user' ? 'user' : 'model',
             parts: [{ text: h.text || h.content || '' }],
           }))
@@ -389,16 +481,13 @@ STRICT SAFETY & BEHAVIOR RULES:
     const response = await chat.sendMessage({ message: message.trim() });
     res.json({
       success: true,
-      reply: response.text || "I'd be happy to share more about Johanna's work! Would you like to check out her projects or get in touch?",
+      reply: response.text || "I'd be happy to share more! Would you like to check out the projects or get in touch?",
       suggestedAction: '/contact',
     });
   } catch (err: any) {
     console.error('Error in public AI chat:', err);
-    res.json({
-      success: true,
-      reply: "Thank you for visiting! You can explore Johanna's published projects on the Work page or reach her directly using the Contact form.",
-      suggestedAction: '/contact',
-    });
+    const formatted = formatGeminiError(err, 'AI chat request failed.');
+    res.status(formatted.status).json({ error: formatted.message });
   }
 });
 

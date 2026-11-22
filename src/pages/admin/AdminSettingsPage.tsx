@@ -82,6 +82,16 @@ export const AdminSettingsPage: React.FC = () => {
   const [animationIntensity, setAnimationIntensity] = useState<'Full' | 'Reduced' | 'Off'>('Full');
 
   const [uploadingPic, setUploadingPic] = useState(false);
+  const [logoImage, setLogoImage] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const initials = profileName
+    .split(' ')
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'JU';
 
   useEffect(() => {
     async function load() {
@@ -97,6 +107,7 @@ export const AdminSettingsPage: React.FC = () => {
         setProfileHeadline(s.profile_headline || 'Virtual Assistant & AI Digital Specialist');
         setProfileBio(s.profile_bio || '');
         setProfilePicture(s.profile_picture || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop');
+        setLogoImage(s.profile_logo || s.site_logo || '');
         setProfileEmail(s.profile_email || user?.email || 'urohjohanna25@gmail.com');
 
         if (s.profile_socials) {
@@ -151,6 +162,21 @@ export const AdminSettingsPage: React.FC = () => {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingLogo(true);
+      const res = await uploadImageFile(file, 'Brand Logo');
+      setLogoImage(res.url);
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload logo image.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -162,6 +188,8 @@ export const AdminSettingsPage: React.FC = () => {
         profile_headline: profileHeadline,
         profile_bio: profileBio,
         profile_picture: profilePicture,
+        profile_logo: logoImage,
+        site_logo: logoImage,
         profile_email: profileEmail,
         profile_socials: JSON.stringify({
           linkedin: socialLinkedin,
@@ -349,6 +377,109 @@ export const AdminSettingsPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Brand Logo Image (Navbar, Footer, Admin CMS) */}
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Brand Logo Image (Navbar, Footer &amp; Main Website)
+                    </label>
+                    {logoImage && (
+                      <button
+                        type="button"
+                        onClick={() => setLogoImage('')}
+                        className="text-[11px] text-rose-500 hover:text-rose-600 font-medium transition-colors"
+                      >
+                        Reset to default monogram
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3 leading-relaxed">
+                    Upload your custom logo image (PNG with transparent background, SVG, or JPG recommended). It immediately displays in the main website top navigation bar, footer, and admin header upon saving.
+                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 border border-purple-500/30 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-purple-500/20 shrink-0">
+                      {logoImage ? (
+                        <img
+                          src={logoImage}
+                          alt="Brand Logo Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        initials
+                      )}
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors">
+                          <Upload className="w-3.5 h-3.5 text-purple-600" />
+                          <span>{uploadingLogo ? 'Uploading Logo...' : 'Upload Logo Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*,.svg"
+                            onChange={handleLogoUpload}
+                            disabled={uploadingLogo}
+                            className="hidden"
+                          />
+                        </label>
+                        {logoImage && (
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            Custom logo configured
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={logoImage}
+                        onChange={(e) => setLogoImage(e.target.value)}
+                        placeholder="Or paste direct logo image URL..."
+                        className="block w-full sm:w-96 text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Real-time Preview Mockup */}
+                  <div className="mt-3.5 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 block mb-2">
+                      Live Preview Appearance (Navbar &amp; Footer)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-6">
+                      {/* Navbar Preview */}
+                      <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#0b0c10] border border-zinc-200 dark:border-zinc-800 shadow-xs">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+                          {logoImage ? (
+                            <img src={logoImage} alt="Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        <div className="leading-tight">
+                          <span className="text-xs font-semibold text-zinc-900 dark:text-white block">
+                            {profileName || 'Johanna Uroh'}
+                          </span>
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 block">
+                            Navbar Brand
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Footer Preview */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#12141a] border border-zinc-200 dark:border-zinc-800">
+                        <div className="w-6 h-6 rounded-md overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-xs">
+                          {logoImage ? (
+                            <img src={logoImage} alt="Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            initials
+                          )}
+                        </div>
+                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                          Footer Brand Mark
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
@@ -522,7 +653,7 @@ export const AdminSettingsPage: React.FC = () => {
                 <div className="p-4 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 text-xs space-y-2">
                   <div className="font-semibold text-purple-900 dark:text-purple-300 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-purple-600" />
-                    <span>Gemini 3.8 Flash Engine Connected</span>
+                    <span>Gemini 4 Hydrogen Engine Connected</span>
                   </div>
                   <p className="text-purple-700 dark:text-purple-400">
                     The AI operates server-side with strict grounding on Johanna&apos;s verified portfolio database. It strictly obeys privacy constraints and never publishes content automatically without your approval.

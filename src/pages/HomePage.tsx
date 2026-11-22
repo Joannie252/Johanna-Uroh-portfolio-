@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '../lib/router';
-import { Project, ServiceItem, TestimonialItem, Product } from '../types';
-import { getProjects, getServices, getTestimonials, sendContactMessage, getProducts } from '../lib/api';
+import { Project, ServiceItem, TestimonialItem, Product, MentorshipProgramme } from '../types';
+import { getProjects, getServices, getTestimonials, sendContactMessage, getProducts, getMentorshipProgrammes } from '../lib/api';
+import { useSiteSettings } from '../context/SettingsContext';
 import { ProjectCard } from '../components/ProjectCard';
 import { AnimatedNetworkVisual } from '../components/AnimatedNetworkVisual';
+import { HeroAnimeShowcase } from '../components/HeroAnimeShowcase';
 import { motion } from 'motion/react';
 import {
   ArrowRight,
@@ -27,7 +29,10 @@ import {
   Cpu,
   Workflow,
   Laptop,
-  BookOpen
+  BookOpen,
+  Compass,
+  Users2,
+  Calendar
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -43,9 +48,16 @@ export const HomePage: React.FC = () => {
   const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
   const [latestProjects, setLatestProjects] = useState<Project[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const { settings } = useSiteSettings();
+  const profileName = settings.profile?.name || 'Johanna Uroh';
+  const profileHeadline = settings.profile?.headline || 'AI Digital Specialist & Executive VA';
+  const profileBio = settings.profile?.bio || 'I’m Johanna Uroh — a digital specialist working across AI, digital systems, virtual assistance, web solutions and practical digital skills. I combine technology, creativity and problem-solving to turn ideas into useful solutions.';
+  const profilePicture = settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg';
+
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [featuredProgrammes, setFeaturedProgrammes] = useState<MentorshipProgramme[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,22 +69,31 @@ export const HomePage: React.FC = () => {
   const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const [contactSuccess, setContactSuccess] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
+  const [shakeSubmit, setShakeSubmit] = useState(false);
+
+  const triggerSubmitShake = () => {
+    setShakeSubmit(true);
+    setTimeout(() => setShakeSubmit(false), 400);
+  };
 
   const loadData = async (cat: string = selectedCategory) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Fetch featured, latest by category, services, testimonials, and products in parallel
-      const [featured, latest, servs, tests, prods] = await Promise.all([
-        getProjects({ featured: true, limit: 3 }),
+      const featuredLimit = settings.portfolio?.featuredLimit || 3;
+
+      // Fetch featured, latest by category, services, testimonials, products, and mentorship in parallel
+      const [featured, latest, servs, tests, prods, mProgrammes] = await Promise.all([
+        getProjects({ featured: true, limit: featuredLimit }),
         getProjects({
           category: cat === 'All' ? undefined : cat,
           limit: 6
         }),
         getServices(),
         getTestimonials(),
-        getProducts({ featured: true, limit: 3 }).catch(() => [] as Product[])
+        getProducts({ featured: true, limit: 3 }).catch(() => [] as Product[]),
+        getMentorshipProgrammes({ featured: true, limit: 3 }).catch(() => [] as MentorshipProgramme[])
       ]);
 
       setFeaturedProjects(featured);
@@ -87,6 +108,13 @@ export const HomePage: React.FC = () => {
         const fallbackProds = await getProducts({ limit: 3 }).catch(() => [] as Product[]);
         setFeaturedProducts(fallbackProds.slice(0, 3));
       }
+
+      if (mProgrammes.length > 0) {
+        setFeaturedProgrammes(mProgrammes);
+      } else {
+        const fallbackM = await getMentorshipProgrammes({ limit: 3 }).catch(() => [] as MentorshipProgramme[]);
+        setFeaturedProgrammes(fallbackM.slice(0, 3));
+      }
     } catch (err: any) {
       console.error('Failed to load home data:', err);
       setError('Unable to fetch live database content. Please try again.');
@@ -97,7 +125,15 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     loadData(selectedCategory);
-  }, [selectedCategory]);
+
+    const onDataUpdated = () => {
+      loadData(selectedCategory);
+    };
+    window.addEventListener('portfolio_data_updated', onDataUpdated);
+    return () => {
+      window.removeEventListener('portfolio_data_updated', onDataUpdated);
+    };
+  }, [selectedCategory, settings.portfolio?.featuredLimit]);
 
   const handleCategorySelect = (cat: string) => {
     setSelectedCategory(cat);
@@ -110,14 +146,17 @@ export const HomePage: React.FC = () => {
 
     if (!contactName.trim()) {
       setContactError('Please enter your name.');
+      triggerSubmitShake();
       return;
     }
     if (!contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
       setContactError('Please enter a valid email address.');
+      triggerSubmitShake();
       return;
     }
     if (!contactMessage.trim() || contactMessage.trim().length < 10) {
       setContactError('Please enter a message of at least 10 characters.');
+      triggerSubmitShake();
       return;
     }
 
@@ -137,6 +176,7 @@ export const HomePage: React.FC = () => {
     } catch (err: any) {
       console.error('Homepage contact error:', err);
       setContactError(err.message || 'Failed to send message. Please try again.');
+      triggerSubmitShake();
     } finally {
       setIsSubmittingContact(false);
     }
@@ -189,34 +229,37 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen">
       {/* 1. HERO SECTION */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+      <section className="relative pt-24 pb-12 md:pt-28 md:pb-16 overflow-hidden">
         {/* Ambient Gradient Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-purple-600/10 dark:bg-purple-600/15 blur-[130px] rounded-full pointer-events-none -z-10" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-600/15 dark:bg-purple-600/20 blur-[150px] rounded-full pointer-events-none -z-10" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-12 space-y-8 lg:space-y-10">
+          {/* Stylized 3D Anime / Cartoon Character + Synchronized Sequential Roles */}
+          <HeroAnimeShowcase />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-14 items-center w-full">
             {/* Left Content Column */}
-            <div className="lg:col-span-7">
-              {/* Pill Eyebrow */}
-              <motion.div
+            <div className="lg:col-span-7 xl:col-span-7">
+              {/* Clean Eyebrow */}
+              <motion.p
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
-                className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/80 mb-6"
+                className="text-xs sm:text-sm font-semibold uppercase tracking-[0.14em] text-purple-700 dark:text-purple-300 mb-3 sm:mb-4"
               >
-                <span>Virtual Assistant &amp; AI Digital Specialist</span>
-              </motion.div>
+                AI &amp; Digital Systems
+              </motion.p>
 
-              {/* Headline */}
+              {/* Dominant Headline */}
               <motion.h1
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.1] font-display"
+                className="text-4xl sm:text-5xl lg:text-6xl xl:text-[4.25rem] font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.06] font-hero-headline text-balance"
               >
-                I turn ideas into{' '}
+                I Turn Ideas Into{' '}
                 <span className="bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-500 bg-clip-text text-transparent">
-                  useful digital solutions.
+                  Practical Digital Systems
                 </span>
               </motion.h1>
 
@@ -225,9 +268,9 @@ export const HomePage: React.FC = () => {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="mt-6 text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-2xl font-light"
+                className="mt-5 sm:mt-6 text-base sm:text-lg lg:text-xl text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-2xl font-light"
               >
-                I’m Johanna Uroh — a digital professional exploring the intersection of AI, technology, content, virtual assistance and practical digital skills.
+                {profileBio}
               </motion.p>
 
               {/* CTAs */}
@@ -235,12 +278,12 @@ export const HomePage: React.FC = () => {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="mt-8 flex flex-wrap items-center gap-4"
+                className="mt-7 sm:mt-8 flex flex-wrap items-center gap-4 sm:gap-5"
               >
                 <Link
                   id="hero-explore-work-btn"
                   to="/work"
-                  className="px-6 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                  className="btn-neon-primary neon-pulse px-7 py-4 text-sm sm:text-base font-semibold"
                 >
                   <span>Explore My Work</span>
                   <ArrowRight className="w-4 h-4" />
@@ -249,35 +292,10 @@ export const HomePage: React.FC = () => {
                 <Link
                   id="hero-contact-btn"
                   to="/contact"
-                  className="px-6 py-3.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="btn-neon-secondary px-7 py-4 text-sm sm:text-base font-semibold"
                 >
-                  Get In Touch
+                  Let&apos;s Work Together
                 </Link>
-              </motion.div>
-
-              {/* Core Capability Highlights */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="mt-12 pt-8 border-t border-zinc-200 dark:border-zinc-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4"
-              >
-                <div>
-                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">AI Workflows</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Prompting &amp; Automation</span>
-                </div>
-                <div>
-                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">Virtual Assist</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Executive &amp; Operations</span>
-                </div>
-                <div>
-                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">Vibe Coding</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Full-Stack Web Apps</span>
-                </div>
-                <div>
-                  <span className="block text-xl font-bold text-zinc-900 dark:text-white">Live CMS</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Dynamic DB-Driven</span>
-                </div>
               </motion.div>
             </div>
 
@@ -286,7 +304,7 @@ export const HomePage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="lg:col-span-5 relative"
+              className="lg:col-span-5 xl:col-span-5 relative w-full lg:max-w-md xl:max-w-lg lg:ml-auto"
             >
               <div className="relative rounded-3xl overflow-hidden bg-white/70 dark:bg-[#12141c]/80 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-8">
                 {/* Embedded Animated Network Canvas in background of card */}
@@ -300,8 +318,9 @@ export const HomePage: React.FC = () => {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <img
-                        src="/uploads/johanna_uroh_avatar.jpg"
-                        alt="Johanna Uroh"
+                        key={profilePicture}
+                        src={profilePicture}
+                        alt={profileName}
                         className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-purple-500/50 shadow-md"
                         onError={(e) => {
                           // Fallback to Unsplash portrait if not yet loaded
@@ -313,10 +332,10 @@ export const HomePage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
-                        Johanna Uroh
+                        {profileName}
                       </h3>
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                        AI Digital Specialist &amp; Executive VA
+                        {profileHeadline}
                       </p>
                       <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -325,24 +344,8 @@ export const HomePage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Real-time System Metrics */}
-                  <div className="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80 text-xs">
-                    <div className="p-3 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800/50">
-                      <span className="text-[11px] text-zinc-400 block font-medium">Core Stack</span>
-                      <strong className="text-zinc-800 dark:text-zinc-200 font-semibold mt-0.5 block">
-                        React • TS • Gemini
-                      </strong>
-                    </div>
-                    <div className="p-3 rounded-xl bg-zinc-50/80 dark:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800/50">
-                      <span className="text-[11px] text-zinc-400 block font-medium">CMS State</span>
-                      <strong className="text-zinc-800 dark:text-zinc-200 font-semibold mt-0.5 block">
-                        Database Synchronized
-                      </strong>
-                    </div>
-                  </div>
-
                   {/* Interactive Quick Links */}
-                  <div className="pt-2 flex items-center justify-between text-xs">
+                  <div className="pt-4 border-t border-zinc-200/60 dark:border-zinc-800/80 flex items-center justify-between text-xs">
                     <Link
                       to="/search"
                       className="inline-flex items-center gap-1.5 text-purple-600 dark:text-purple-400 font-semibold hover:underline"
@@ -393,15 +396,15 @@ export const HomePage: React.FC = () => {
                   Curated Highlights
                 </span>
                 <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white mt-1">
-                  Featured Work
+                  Selected Work
                 </h2>
                 <p className="mt-2 text-zinc-600 dark:text-zinc-400 text-sm max-w-xl">
-                  Hand-picked projects that demonstrate practical problem solving, AI integrations, and responsive digital products.
+                  A selection of projects where I’ve turned ideas into practical digital solutions.
                 </p>
               </div>
               <Link
                 to="/work"
-                className="mt-4 md:mt-0 inline-flex items-center gap-1.5 text-sm font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                className="mt-4 md:mt-0 link-neon text-sm font-semibold"
               >
                 <span>View all work</span>
                 <ArrowRight className="w-4 h-4" />
@@ -434,7 +437,7 @@ export const HomePage: React.FC = () => {
             </div>
             <Link
               to="/work"
-              className="mt-4 md:mt-0 inline-flex items-center gap-1.5 text-sm font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+              className="mt-4 md:mt-0 link-neon text-sm font-semibold"
             >
               <span>Explore all projects</span>
               <ArrowRight className="w-4 h-4" />
@@ -446,11 +449,12 @@ export const HomePage: React.FC = () => {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
+                id={`home-category-${cat.toLowerCase().replace(/\s+/g, '-')}`}
                 onClick={() => handleCategorySelect(cat)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`pill-neon ${
                   selectedCategory === cat
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20 scale-[1.02]'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700/60'
+                    ? 'pill-neon-active'
+                    : 'pill-neon-inactive'
                 }`}
               >
                 {cat}
@@ -621,7 +625,7 @@ export const HomePage: React.FC = () => {
 
               <Link
                 to="/resources"
-                className="px-5 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800/80 bg-white dark:bg-zinc-800 text-purple-700 dark:text-purple-300 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-600 dark:hover:text-white font-semibold text-xs transition-all flex items-center gap-2 self-start md:self-auto shadow-sm"
+                className="btn-neon-secondary px-5 py-2.5 text-xs font-semibold self-start md:self-auto shadow-sm"
               >
                 <span>View All Resources</span>
                 <ArrowRight className="w-4 h-4" />
@@ -684,9 +688,119 @@ export const HomePage: React.FC = () => {
 
                         <Link
                           to={`/resources/${product.slug}`}
-                          className="px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white dark:hover:text-white border border-purple-200 dark:border-purple-800/60 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+                          className="btn-neon-secondary px-4 py-2 text-xs font-semibold shadow-sm"
                         >
                           <span>View Details</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 6.5. SKILLS MENTORSHIP SECTION */}
+      {featuredProgrammes.length > 0 && (
+        <section id="mentorship-preview-section" className="py-16 md:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+              <div className="max-w-2xl">
+                <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>Personalized Hands-on Guidance</span>
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white mt-1 font-display">
+                  Learn. Build. Grow.
+                </h2>
+                <p className="mt-2 text-zinc-600 dark:text-zinc-400 text-sm sm:text-base leading-relaxed">
+                  Practical mentorship designed to help you develop valuable digital skills, build confidence, create real projects and position yourself for opportunities.
+                </p>
+              </div>
+
+              <Link
+                to="/mentorship"
+                className="btn-neon-secondary px-5 py-2.5 text-xs font-semibold self-start md:self-auto shadow-sm"
+              >
+                <span>Explore Mentorship</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {featuredProgrammes.slice(0, 3).map((prog) => {
+                const formattedPrice =
+                  prog.price === 0
+                    ? 'Free'
+                    : prog.currency === 'USD' || prog.currency === '$'
+                    ? `$${prog.price}`
+                    : `${prog.currency} ${prog.price}`;
+
+                return (
+                  <div
+                    key={prog.id}
+                    id={`featured-mentorship-${prog.slug}`}
+                    className="group flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-[#12141a] overflow-hidden shadow-sm hover:shadow-xl dark:hover:shadow-purple-950/20 hover:-translate-y-1.5 transition-all duration-300"
+                  >
+                    <Link
+                      to={`/mentorship/${prog.slug}`}
+                      className="relative aspect-[16/10] overflow-hidden block bg-zinc-100 dark:bg-zinc-800"
+                    >
+                      <img
+                        src={prog.coverImage}
+                        alt={prog.name}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                      <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/95 dark:bg-zinc-900/90 text-purple-700 dark:text-purple-300 shadow-sm border border-purple-200/50 dark:border-purple-800/50 backdrop-blur-sm">
+                          {prog.duration}
+                        </span>
+                        {prog.featured && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-white shadow-sm flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            <span>Featured</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="absolute bottom-3 left-3 right-3 text-[11px] text-zinc-200 font-medium flex items-center justify-between">
+                        <span>{prog.format}</span>
+                        <span>{prog.sessions}</span>
+                      </div>
+                    </Link>
+
+                    <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                      <div className="space-y-2">
+                        <Link to={`/mentorship/${prog.slug}`}>
+                          <h3 className="text-lg font-bold text-zinc-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
+                            {prog.name}
+                          </h3>
+                        </Link>
+                        <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                          {prog.shortDescription}
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold block">
+                            Tuition
+                          </span>
+                          <span className="text-lg font-bold text-zinc-900 dark:text-white font-display">
+                            {formattedPrice}
+                          </span>
+                        </div>
+
+                        <Link
+                          to={`/mentorship/${prog.slug}`}
+                          className="btn-neon-secondary px-4 py-2 text-xs font-semibold shadow-sm"
+                        >
+                          <span>Programme Details</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Link>
                       </div>
@@ -705,7 +819,7 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                About Johanna Uroh
+                About {profileName}
               </span>
               <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white mt-1">
                 Blending Strategic Execution with Modern Tech
@@ -720,14 +834,14 @@ export const HomePage: React.FC = () => {
               <div className="mt-8 flex flex-wrap gap-4">
                 <Link
                   to="/about"
-                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold transition-all inline-flex items-center gap-2"
+                  className="btn-neon-primary px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2"
                 >
                   <span>Read Full Journey</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   to="/work"
-                  className="px-5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="btn-neon-secondary px-5 py-2.5 text-sm font-semibold"
                 >
                   View Case Studies
                 </Link>
@@ -839,10 +953,10 @@ export const HomePage: React.FC = () => {
                   Let&apos;s Connect
                 </span>
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 dark:text-white mt-1 font-display">
-                  Start a Conversation
+                  Have an idea you want to turn into something useful?
                 </h2>
                 <p className="mt-4 text-zinc-600 dark:text-zinc-300 text-sm sm:text-base leading-relaxed">
-                  Whether you need virtual assistance support, custom AI prompt engineering, or modern web development, feel free to send a message.
+                  Let&apos;s talk about what you&apos;re building.
                 </p>
               </div>
 
@@ -987,7 +1101,9 @@ export const HomePage: React.FC = () => {
                       id="home-contact-submit-btn"
                       type="submit"
                       disabled={isSubmittingContact}
-                      className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      className={`w-full py-3.5 rounded-xl btn-neon-primary text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                        shakeSubmit ? 'neon-shake' : ''
+                      }`}
                     >
                       {isSubmittingContact ? (
                         <span>Sending message...</span>

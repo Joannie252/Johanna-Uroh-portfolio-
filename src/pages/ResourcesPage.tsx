@@ -78,7 +78,7 @@ export const ResourcesPage: React.FC = () => {
                 id="explore-resources-cta"
                 type="button"
                 onClick={scrollToGrid}
-                className="px-6 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm shadow-lg shadow-purple-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2.5"
+                className="btn-neon-primary neon-pulse px-6 py-3.5 text-sm"
               >
                 <span>Explore Resources</span>
                 <ArrowRight className="w-4 h-4" />
@@ -99,11 +99,12 @@ export const ResourcesPage: React.FC = () => {
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
+                  id={`resource-filter-${cat.toLowerCase().replace(/\s+/g, '-')}`}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                  className={`pill-neon ${
                     selectedCategory === cat
-                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700/60'
+                      ? 'pill-neon-active'
+                      : 'pill-neon-inactive'
                   }`}
                 >
                   {cat}
@@ -237,7 +238,7 @@ export const ResourcesPage: React.FC = () => {
 
                       <Link
                         to={`/resources/${product.slug}`}
-                        className="px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white dark:hover:text-white border border-purple-200 dark:border-purple-800/60 hover:border-purple-600 font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+                        className="btn-neon-secondary px-4 py-2 text-xs font-semibold"
                       >
                         <span>View Details</span>
                         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

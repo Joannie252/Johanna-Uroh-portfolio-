@@ -10,6 +10,11 @@
   h1, h2, h3, .font-display {
     font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
   }
+
+  .font-hero-headline {
+    font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.035em;
+  }
 }
 
 /* Custom scrollbar */
@@ -26,4 +31,321 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(147, 51, 234, 0.4);
+}
+
+/* =========================================================
+   PREMIUM NEON INTERACTION SYSTEM (PHASE 1.5)
+   ========================================================= */
+
+/* Subtle horizontal shake (for invalid submissions / validation feedback) */
+@keyframes hold-fill {
+  from {
+    stroke-dashoffset: 132;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes neon-shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+  100% { transform: translateX(0); }
+}
+
+/* Gentle neon breathing / pulse for high-priority CTAs (slow 3.8s interval) */
+@keyframes neon-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0), 0 2px 10px rgba(147, 51, 234, 0.25);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px rgba(168, 85, 247, 0.45), 0 0 28px 4px rgba(147, 51, 234, 0.22);
+    filter: brightness(1.05);
+  }
+}
+
+/* Primary CTA Neon Class */
+.btn-neon-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  background-color: rgb(147, 51, 234);
+  color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 10px rgba(147, 51, 234, 0.25);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              filter 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-neon-primary:hover {
+  background-color: rgb(126, 34, 206);
+  filter: brightness(1.06);
+  transform: scale(1.025);
+  box-shadow: 0 0 18px 2px rgba(168, 85, 247, 0.5), 0 0 32px 4px rgba(147, 51, 234, 0.25);
+}
+
+.btn-neon-primary:active {
+  transform: scale(0.975);
+  filter: brightness(0.96);
+  box-shadow: 0 0 10px 1px rgba(168, 85, 247, 0.65);
+  transition-duration: 80ms;
+}
+
+.btn-neon-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgb(168, 85, 247), 0 0 14px rgba(168, 85, 247, 0.5);
+}
+
+:where(.dark) .btn-neon-primary:focus-visible {
+  box-shadow: 0 0 0 2px #0e1017, 0 0 0 4px rgb(192, 132, 252), 0 0 16px rgba(192, 132, 252, 0.6);
+}
+
+/* Secondary CTA Neon Class */
+.btn-neon-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  background-color: transparent;
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(168, 85, 247, 0.32);
+  color: rgb(39, 39, 42);
+  border-radius: 0.75rem;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              filter 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(.dark) .btn-neon-secondary {
+  color: rgb(228, 228, 231);
+  border-color: rgba(168, 85, 247, 0.35);
+  background-color: rgba(18, 20, 26, 0.4);
+}
+
+.btn-neon-secondary:hover {
+  border-color: rgba(168, 85, 247, 0.8);
+  color: rgb(147, 51, 234);
+  background-color: rgba(168, 85, 247, 0.06);
+  filter: brightness(1.04);
+  transform: scale(1.02);
+  box-shadow: 0 0 14px 1px rgba(168, 85, 247, 0.28);
+}
+
+:where(.dark) .btn-neon-secondary:hover {
+  color: rgb(216, 180, 254);
+  background-color: rgba(168, 85, 247, 0.12);
+  box-shadow: 0 0 16px 2px rgba(168, 85, 247, 0.35);
+}
+
+.btn-neon-secondary:active {
+  transform: scale(0.98);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+  transition-duration: 80ms;
+}
+
+.btn-neon-secondary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgb(168, 85, 247), 0 0 12px rgba(168, 85, 247, 0.4);
+}
+
+:where(.dark) .btn-neon-secondary:focus-visible {
+  box-shadow: 0 0 0 2px #0e1017, 0 0 0 4px rgb(192, 132, 252), 0 0 14px rgba(192, 132, 252, 0.5);
+}
+
+/* High-priority CTA pulse class */
+.neon-pulse {
+  animation: neon-breathe 3.8s ease-in-out infinite;
+}
+
+/* Subtle shake class for validation feedback */
+.neon-shake {
+  animation: neon-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Neon Interactive Link */
+.link-neon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: rgb(147, 51, 234);
+  font-weight: 600;
+  transition: color 180ms ease, filter 180ms ease, text-shadow 180ms ease, transform 180ms ease;
+}
+
+:where(.dark) .link-neon {
+  color: rgb(192, 132, 252);
+}
+
+.link-neon:hover {
+  color: rgb(126, 34, 206);
+  filter: brightness(1.1);
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.45);
+}
+
+:where(.dark) .link-neon:hover {
+  color: rgb(216, 180, 254);
+  text-shadow: 0 0 12px rgba(192, 132, 252, 0.55);
+}
+
+.link-neon:active {
+  transform: scale(0.98);
+}
+
+.link-neon:focus-visible {
+  outline: none;
+  border-radius: 0.375rem;
+  box-shadow: 0 0 0 2px rgb(168, 85, 247);
+}
+
+/* Neon Toggle Pills (Categories, Filters, Tabs) */
+.pill-neon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  border-width: 1px;
+  border-style: solid;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              filter 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pill-neon:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px rgb(168, 85, 247);
+}
+
+:where(.dark) .pill-neon:focus-visible {
+  box-shadow: 0 0 0 2px #0e1017, 0 0 0 4px rgb(192, 132, 252);
+}
+
+/* Inactive state */
+.pill-neon-inactive {
+  background-color: rgb(244, 244, 245);
+  border-color: rgb(228, 228, 231);
+  color: rgb(82, 82, 91);
+}
+
+:where(.dark) .pill-neon-inactive {
+  background-color: rgba(24, 24, 27, 0.7);
+  border-color: rgba(63, 63, 70, 0.6);
+  color: rgb(212, 212, 216);
+}
+
+.pill-neon-inactive:hover {
+  background-color: rgb(244, 244, 245);
+  border-color: rgba(168, 85, 247, 0.45);
+  color: rgb(147, 51, 234);
+  transform: scale(1.02);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.18);
+}
+
+:where(.dark) .pill-neon-inactive:hover {
+  background-color: rgba(39, 39, 42, 0.7);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: rgb(216, 180, 254);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}
+
+.pill-neon-inactive:active {
+  transform: scale(0.98);
+}
+
+/* Active state */
+.pill-neon-active {
+  background-color: rgb(147, 51, 234);
+  border-color: rgb(168, 85, 247);
+  color: #ffffff;
+  transform: scale(1.025);
+  box-shadow: 0 0 14px 2px rgba(168, 85, 247, 0.45), 0 2px 6px rgba(147, 51, 234, 0.3);
+}
+
+.pill-neon-active:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 0 18px 3px rgba(168, 85, 247, 0.55), 0 2px 8px rgba(147, 51, 234, 0.4);
+}
+
+.pill-neon-active:active {
+  transform: scale(0.98);
+}
+
+/* Nav Item Micro-Interactions */
+.nav-item-neon {
+  position: relative;
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0.5rem;
+}
+
+.nav-item-neon:hover {
+  transform: translateY(-1px);
+}
+
+.nav-item-neon:active {
+  transform: scale(0.98);
+}
+
+.nav-item-neon:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(168, 85, 247);
+}
+
+/* ACCESSIBILITY: Prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .neon-pulse,
+  .neon-shake {
+    animation: none !important;
+  }
+  .btn-neon-primary,
+  .btn-neon-secondary,
+  .pill-neon,
+  .link-neon,
+  .nav-item-neon {
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease !important;
+    transform: none !important;
+  }
+  .btn-neon-primary:hover,
+  .btn-neon-secondary:hover,
+  .pill-neon:hover,
+  .link-neon:hover,
+  .nav-item-neon:hover {
+    transform: none !important;
+  }
+  .btn-neon-primary:active,
+  .btn-neon-secondary:active,
+  .pill-neon:active,
+  .link-neon:active,
+  .nav-item-neon:active {
+    transform: none !important;
+  }
 }

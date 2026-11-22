@@ -1,12 +1,13 @@
 import express, { Request, Response } from 'express';
 import { getAllSettings, getSetting, setSetting, logActivity } from '../db.js';
 import { authenticateAdmin, AuthRequest } from '../auth.js';
+import { sendTestEmail, getEmailConfig } from '../email.js';
 
 const router = express.Router();
 
 // Helper to check if email service is configured
 function isEmailServiceConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 // 1. GET /api/settings (Public - returns public site profile and preferences)
@@ -20,6 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
         headline: settings.profile_headline || 'Virtual Assistant & AI Digital Specialist',
         bio: settings.profile_bio || 'I turn ideas into useful digital solutions.',
         profilePicture: settings.profile_picture || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop',
+        logoImage: settings.profile_logo || settings.site_logo || '',
         email: settings.profile_email || 'urohjohanna25@gmail.com',
         socials: settings.profile_socials ? JSON.parse(settings.profile_socials) : {
           linkedin: 'https://linkedin.com',
@@ -172,27 +174,37 @@ router.put('/notifications', authenticateAdmin, async (req: AuthRequest, res: Re
 // 6. POST /api/settings/test-email (Admin Only - Test Email Notification)
 router.post('/test-email', authenticateAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const notificationEmail = await getSetting('notification_email', 'urohjohanna25@gmail.com');
+    const config = await getEmailConfig();
 
     if (!isEmailServiceConfigured()) {
       res.status(400).json({
         success: false,
         configured: false,
-        error: 'Email service is not configured. Please set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS environment variables.',
+        error: 'Email service is not fully configured. Please ensure SMTP_USER and SMTP_PASS are set.',
       });
       return;
     }
 
-    // When configured with real credentials, send via SMTP
-    // For test purposes if configured:
+    const testResult = await sendTestEmail();
+
+    if (!testResult.success) {
+      res.status(500).json({
+        success: false,
+        configured: true,
+        error: testResult.message,
+      });
+      return;
+    }
+
     res.json({
       success: true,
       configured: true,
-      message: `Test email successfully dispatched to ${notificationEmail}`,
+      message: testResult.message,
+      targetEmail: config.adminEmail,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error testing email notification:', err);
-    res.status(500).json({ error: 'Failed to execute email test' });
+    res.status(500).json({ error: err.message || 'Failed to execute email test' });
   }
 });
 

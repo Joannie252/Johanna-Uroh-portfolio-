@@ -44,7 +44,15 @@ export const WorkPage: React.FC = () => {
       loadProjects();
     }, 150);
 
-    return () => clearTimeout(timer);
+    const onDataUpdated = () => {
+      loadProjects();
+    };
+    window.addEventListener('portfolio_data_updated', onDataUpdated);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('portfolio_data_updated', onDataUpdated);
+    };
   }, [selectedCategory, searchQuery]);
 
   return (
@@ -71,11 +79,12 @@ export const WorkPage: React.FC = () => {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
+                id={`work-filter-${cat.toLowerCase().replace(/\s+/g, '-')}`}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`pill-neon ${
                   selectedCategory === cat
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700/60'
+                    ? 'pill-neon-active'
+                    : 'pill-neon-inactive'
                 }`}
               >
                 {cat}

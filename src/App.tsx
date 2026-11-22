@@ -1,6 +1,7 @@
 import React from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { RouterProvider, useRouter, matchPath, Link } from './lib/router';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -15,6 +16,9 @@ import { ContactPage } from './pages/ContactPage';
 import { PublicSearchPage } from './pages/PublicSearchPage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { ResourceDetailPage } from './pages/ResourceDetailPage';
+import { MentorshipPage } from './pages/Mentorship';
+import { MentorshipDetailPage } from './pages/MentorshipDetail';
+import { MentorshipApplyPage } from './pages/MentorshipApply';
 
 // Admin Pages
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
@@ -22,6 +26,7 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminProjectsPage } from './pages/admin/AdminProjectsPage';
 import { AdminProjectEditorPage } from './pages/admin/AdminProjectEditorPage';
 import { AdminProductsPage } from './pages/admin/AdminProductsPage';
+import { AdminMentorshipPage } from './pages/admin/AdminMentorshipPage';
 import { AdminServicesPage } from './pages/admin/AdminServicesPage';
 import { AdminTestimonialsPage } from './pages/admin/AdminTestimonialsPage';
 import { AdminExperiencePage } from './pages/admin/AdminExperiencePage';
@@ -59,6 +64,10 @@ const AppContent: React.FC = () => {
 
   if (cleanPath === '/admin/products') {
     return <AdminProductsPage />;
+  }
+
+  if (cleanPath === '/admin/mentorship') {
+    return <AdminMentorshipPage />;
   }
 
   if (cleanPath === '/admin/services') {
@@ -102,6 +111,10 @@ const AppContent: React.FC = () => {
     pageContent = <WorkPage />;
   } else if (cleanPath === '/resources') {
     pageContent = <ResourcesPage />;
+  } else if (cleanPath === '/mentorship') {
+    pageContent = <MentorshipPage />;
+  } else if (cleanPath === '/mentorship/apply') {
+    pageContent = <MentorshipApplyPage />;
   } else if (cleanPath === '/search') {
     pageContent = <PublicSearchPage />;
   } else if (cleanPath === '/services') {
@@ -114,11 +127,17 @@ const AppContent: React.FC = () => {
     // Dynamic single project check: /work/:slug
     const workMatch = matchPath('/work/:slug', cleanPath);
     const resourceMatch = matchPath('/resources/:slug', cleanPath);
+    const mentorshipApplyMatch = matchPath('/mentorship/:slug/apply', cleanPath);
+    const mentorshipMatch = matchPath('/mentorship/:slug', cleanPath);
 
     if (workMatch.matches) {
       pageContent = <ProjectDetailPage slug={workMatch.params.slug} />;
     } else if (resourceMatch.matches) {
       pageContent = <ResourceDetailPage slug={resourceMatch.params.slug} />;
+    } else if (mentorshipApplyMatch.matches) {
+      pageContent = <MentorshipApplyPage slug={mentorshipApplyMatch.params.slug} />;
+    } else if (mentorshipMatch.matches) {
+      pageContent = <MentorshipDetailPage slug={mentorshipMatch.params.slug} />;
     } else {
       // 404 Not Found
       pageContent = (
@@ -152,9 +171,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider>
-          <AppContent />
-        </RouterProvider>
+        <SettingsProvider>
+          <RouterProvider>
+            <AppContent />
+          </RouterProvider>
+        </SettingsProvider>
       </AuthProvider>
     </ThemeProvider>
   );

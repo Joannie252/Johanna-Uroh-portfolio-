@@ -15,6 +15,7 @@ import searchRouter from './routes/search.js';
 import activityRouter from './routes/activity.js';
 import settingsRouter from './routes/settings.js';
 import productsRouter from './routes/products.js';
+import mentorshipRouter from './routes/mentorship.js';
 import { seedDatabase } from './seed.js';
 
 const app = express();
@@ -31,6 +32,14 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Static uploads serving
 app.use('/uploads', express.static(uploadDir));
+
+// Ensure API responses are always fresh and never cached by browser
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 
 // Seed database on first run
 seedDatabase().catch((err) => {
@@ -52,6 +61,7 @@ app.use('/api/search', searchRouter);
 app.use('/api/activity', activityRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/products', productsRouter);
+app.use('/api/mentorship', mentorshipRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

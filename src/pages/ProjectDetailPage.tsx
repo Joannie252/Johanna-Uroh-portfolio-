@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Github,
   ArrowLeft,
+  ArrowRight,
   Sparkles,
   Layers,
   CheckCircle,
@@ -50,6 +51,15 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
     }
 
     loadProject();
+
+    const onDataUpdated = () => {
+      loadProject();
+    };
+    window.addEventListener('portfolio_data_updated', onDataUpdated);
+
+    return () => {
+      window.removeEventListener('portfolio_data_updated', onDataUpdated);
+    };
   }, [slug, isPreviewMode]);
 
   if (isLoading) {
@@ -81,7 +91,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
           <div className="pt-4 flex justify-center gap-3">
             <Link
               to="/work"
-              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold inline-flex items-center gap-2"
+              className="btn-neon-primary px-4 py-2 text-sm font-semibold"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Portfolio</span>
@@ -110,7 +120,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
         {/* Back Link */}
         <Link
           to="/work"
-          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 mb-8 transition-colors"
+          className="link-neon text-sm font-medium mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to all projects</span>
@@ -203,7 +213,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
                   href={project.projectUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                  className="link-neon text-xs font-semibold"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>View Live Project</span>
@@ -327,7 +337,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
                 href={project.projectUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-md shadow-purple-600/20 inline-flex items-center gap-2"
+                className="btn-neon-primary px-6 py-3 text-sm font-semibold shadow-md inline-flex items-center gap-2"
               >
                 <span>View Live Project</span>
                 <ExternalLink className="w-4 h-4" />
@@ -338,7 +348,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
                 href={project.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 inline-flex items-center gap-2"
+                className="btn-neon-secondary px-6 py-3 text-sm font-semibold inline-flex items-center gap-2"
               >
                 <Github className="w-4 h-4" />
                 <span>View Source Code</span>
@@ -348,9 +358,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
 
           <Link
             to="/contact"
-            className="text-sm font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+            className="link-neon text-sm font-semibold"
           >
-            Have a similar project? Let&apos;s talk →
+            <span>Have a similar project? Let&apos;s talk</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 

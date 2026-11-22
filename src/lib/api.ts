@@ -1,4 +1,4 @@
-import { Project, ServiceItem, TestimonialItem, ExperienceItem, ContactMessage, AdminUser, DashboardData, Product } from '../types';
+import { Project, ServiceItem, TestimonialItem, ExperienceItem, ContactMessage, AdminUser, DashboardData, Product, MentorshipProgramme, MentorshipApplication, MentorshipApplicationStatus } from '../types';
 
 const TOKEN_KEY = 'johanna_admin_token';
 
@@ -80,6 +80,7 @@ export async function getProjects(params?: {
 
   const res = await fetch(`/api/projects?${query.toString()}`, {
     headers: getAuthHeaders(),
+    cache: 'no-store',
   });
   if (!res.ok) {
     throw new Error('Failed to fetch projects');
@@ -91,6 +92,7 @@ export async function getProjectBySlug(slug: string, preview?: boolean): Promise
   const query = preview ? '?preview=true' : '';
   const res = await fetch(`/api/projects/${encodeURIComponent(slug)}${query}`, {
     headers: getAuthHeaders(),
+    cache: 'no-store',
   });
   if (!res.ok) {
     throw new Error('Project not found');
@@ -111,6 +113,9 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
   if (!res.ok) {
     throw new Error(result.error || 'Failed to create project');
   }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
+  }
   return result;
 }
 
@@ -127,6 +132,9 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
   if (!res.ok) {
     throw new Error(result.error || 'Failed to update project');
   }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
+  }
   return result;
 }
 
@@ -138,6 +146,9 @@ export async function publishProject(id: string): Promise<Project> {
   const result = await res.json();
   if (!res.ok) {
     throw new Error(result.error || 'Failed to publish project');
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
   }
   return result;
 }
@@ -151,6 +162,9 @@ export async function unpublishProject(id: string): Promise<Project> {
   if (!res.ok) {
     throw new Error(result.error || 'Failed to unpublish project');
   }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
+  }
   return result;
 }
 
@@ -162,6 +176,9 @@ export async function deleteProject(id: string): Promise<void> {
   if (!res.ok) {
     const result = await res.json().catch(() => ({}));
     throw new Error(result.error || 'Failed to delete project');
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
   }
 }
 
@@ -440,6 +457,69 @@ export async function chatAdminAI(
   return data.reply;
 }
 
+export async function streamChatAdminAI(
+  message: string,
+  conversationHistory: Array<{ role: string; content: string }> = [],
+  onChunk: (delta: string) => void
+): Promise<string> {
+  const res = await fetch('/api/ai/chat-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ message, conversationHistory, stream: true }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'AI Assistant request failed');
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('text/event-stream') || !res.body) {
+    const data = await res.json();
+    const reply = data.reply || '';
+    if (reply) onChunk(reply);
+    return reply;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullReply = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() || '';
+
+    for (const part of parts) {
+      const lines = part.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (!raw) continue;
+        let parsed: any;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+        if (parsed.error) {
+          throw new Error(parsed.error);
+        }
+        if (parsed.chunk) {
+          fullReply += parsed.chunk;
+          onChunk(parsed.chunk);
+        }
+      }
+    }
+  }
+
+  return fullReply;
+}
+
 export async function chatPublicAI(
   message: string,
   conversationHistory: Array<{ role: string; content: string }> = []
@@ -562,7 +642,7 @@ export async function getActivityLogs(): Promise<import('../types').ActivityLog[
 
 // Settings API
 export async function getPublicSettings(): Promise<import('../types').SiteSettings> {
-  const res = await fetch('/api/settings');
+  const res = await fetch('/api/settings', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to load site settings');
   return res.json();
 }
@@ -574,6 +654,7 @@ export async function getAdminSettings(): Promise<{
 }> {
   const res = await fetch('/api/settings/all', {
     headers: getAuthHeaders(),
+    cache: 'no-store',
   });
   if (!res.ok) throw new Error('Failed to load settings');
   return res.json();
@@ -588,6 +669,10 @@ export async function updateAdminSettings(updates: Record<string, any>): Promise
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || 'Failed to update settings');
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('portfolio_settings_updated'));
+    window.dispatchEvent(new CustomEvent('portfolio_data_updated'));
   }
 }
 
@@ -729,5 +814,190 @@ export async function deleteProduct(id: string): Promise<void> {
     throw new Error(data.error || 'Failed to delete digital product');
   }
 }
+
+// ==========================================
+// MENTORSHIP API
+// ==========================================
+
+export async function getMentorshipProgrammes(params?: {
+  search?: string;
+  featured?: boolean;
+  limit?: number;
+  all?: boolean;
+}): Promise<MentorshipProgramme[]> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.featured !== undefined) query.set('featured', String(params.featured));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.all) query.set('all', 'true');
+
+  const res = await fetch(`/api/mentorship/programmes?${query.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to fetch mentorship programmes');
+  }
+  return res.json();
+}
+
+export async function getMentorshipProgrammeBySlug(slug: string): Promise<MentorshipProgramme> {
+  const res = await fetch(`/api/mentorship/programmes/${encodeURIComponent(slug)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Mentorship programme not found');
+  }
+  return res.json();
+}
+
+export async function submitMentorshipApplication(data: {
+  programmeId?: string;
+  programmeSlug?: string;
+  fullName: string;
+  email: string;
+  whatsapp: string;
+  currentSkillLevel: string;
+  skillToLearn: string;
+  whyMentorship: string;
+  goals: string;
+  preferredProgramme: string;
+  availability: string;
+  portfolioLink?: string;
+}): Promise<{ success: boolean; message: string; applicationId: string }> {
+  const res = await fetch('/api/mentorship/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.error || 'Failed to submit mentorship application');
+  }
+  return json;
+}
+
+export async function getAdminMentorshipProgrammes(): Promise<MentorshipProgramme[]> {
+  const res = await fetch('/api/mentorship/admin/programmes', {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to fetch admin mentorship programmes');
+  }
+  return res.json();
+}
+
+export async function createMentorshipProgramme(
+  programmeData: Partial<MentorshipProgramme>
+): Promise<MentorshipProgramme> {
+  const res = await fetch('/api/mentorship/admin/programmes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(programmeData),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to create mentorship programme');
+  }
+  return data;
+}
+
+export async function updateMentorshipProgramme(
+  id: string,
+  programmeData: Partial<MentorshipProgramme>
+): Promise<MentorshipProgramme> {
+  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify(programmeData),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to update mentorship programme');
+  }
+  return data;
+}
+
+export async function deleteMentorshipProgramme(id: string): Promise<void> {
+  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete mentorship programme');
+  }
+}
+
+export async function togglePublishMentorshipProgramme(id: string): Promise<MentorshipProgramme> {
+  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-publish`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to toggle published status');
+  }
+  return data;
+}
+
+export async function toggleFeaturedMentorshipProgramme(id: string): Promise<MentorshipProgramme> {
+  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-featured`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to toggle featured status');
+  }
+  return data;
+}
+
+export async function getAdminMentorshipApplications(params?: {
+  status?: string;
+  programmeId?: string;
+  search?: string;
+}): Promise<MentorshipApplication[]> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set('status', params.status);
+  if (params?.programmeId) query.set('programmeId', params.programmeId);
+  if (params?.search) query.set('search', params.search);
+
+  const res = await fetch(`/api/mentorship/admin/applications?${query.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to fetch mentorship applications');
+  }
+  return res.json();
+}
+
+export async function updateMentorshipApplicationStatus(
+  id: string,
+  status: MentorshipApplicationStatus,
+  notes?: string
+): Promise<MentorshipApplication> {
+  const res = await fetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ status, notes }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to update application status');
+  }
+  return data;
+}
+
+export async function deleteMentorshipApplication(id: string): Promise<void> {
+  const res = await fetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete application');
+  }
+}
+
 
 

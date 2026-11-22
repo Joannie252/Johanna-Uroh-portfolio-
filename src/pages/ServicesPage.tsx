@@ -121,7 +121,7 @@ export const ServicesPage: React.FC = () => {
                 <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800/60">
                   <Link
                     to={`/contact?service=${encodeURIComponent(service.title)}`}
-                    className="w-full py-3 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                    className="btn-neon-secondary w-full py-3 text-sm font-semibold flex items-center justify-center gap-2"
                   >
                     <span>Request this service</span>
                     <ArrowRight className="w-4 h-4" />
@@ -144,7 +144,7 @@ export const ServicesPage: React.FC = () => {
           </div>
           <Link
             to="/contact"
-            className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold whitespace-nowrap shadow-md shadow-purple-600/20"
+            className="btn-neon-primary px-6 py-3 text-sm font-semibold whitespace-nowrap shadow-md"
           >
             Get in touch
           </Link>

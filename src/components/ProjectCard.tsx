@@ -84,10 +84,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, featured }) =
           <Link
             id={`view-project-btn-${project.slug}`}
             to={`/work/${project.slug}`}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-purple-600 dark:text-purple-400 group-hover:translate-x-1 transition-transform"
+            className="link-neon text-sm font-semibold"
           >
             <span>View Case Study</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </Link>
           
           {project.services && project.services.length > 0 && (

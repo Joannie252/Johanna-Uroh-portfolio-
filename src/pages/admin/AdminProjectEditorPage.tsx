@@ -385,28 +385,53 @@ export const AdminProjectEditorPage: React.FC<AdminProjectEditorPageProps> = ({ 
               </a>
             )}
 
-            {/* Save as Draft */}
-            <button
-              id="save-draft-btn"
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSave('DRAFT')}
-              className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50"
-            >
-              {isSaving && status === 'DRAFT' ? 'Saving...' : 'Save as Draft'}
-            </button>
-
-            {/* Publish Button */}
-            <button
-              id="publish-project-btn"
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSave('PUBLISHED')}
-              className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>{isSaving && status === 'PUBLISHED' ? 'Publishing...' : 'Publish Project'}</span>
-            </button>
+            {/* Save Actions */}
+            {status === 'PUBLISHED' ? (
+              <>
+                <button
+                  id="unpublish-project-btn"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('DRAFT')}
+                  className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50"
+                  title="Hide from public portfolio"
+                >
+                  {isSaving ? 'Updating...' : 'Unpublish to Draft'}
+                </button>
+                <button
+                  id="publish-project-btn"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('PUBLISHED')}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isSaving ? 'Saving Changes...' : 'Save & Keep Live'}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  id="save-draft-btn"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('DRAFT')}
+                  className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save as Draft'}
+                </button>
+                <button
+                  id="publish-project-btn"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('PUBLISHED')}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold shadow-sm shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isSaving ? 'Publishing...' : 'Publish Live'}</span>
+                </button>
+              </>
+            )}
 
             {/* Delete button if editing */}
             {isEditing && (
@@ -883,23 +908,47 @@ export const AdminProjectEditorPage: React.FC<AdminProjectEditorPageProps> = ({ 
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSave('DRAFT')}
-              className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              Save as Draft
-            </button>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSave('PUBLISHED')}
-              className="px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-md shadow-purple-600/20 hover:scale-[1.02] transition-all flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Publish Now</span>
-            </button>
+            {status === 'PUBLISHED' ? (
+              <>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('DRAFT')}
+                  className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? 'Updating...' : 'Unpublish to Draft'}
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('PUBLISHED')}
+                  className="px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-md shadow-purple-600/20 hover:scale-[1.02] transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isSaving ? 'Saving Changes...' : 'Save & Keep Live'}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('DRAFT')}
+                  className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save as Draft'}
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleSave('PUBLISHED')}
+                  className="px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-md shadow-purple-600/20 hover:scale-[1.02] transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isSaving ? 'Publishing...' : 'Publish Live'}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 

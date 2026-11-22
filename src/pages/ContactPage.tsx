@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from '../lib/router';
 import { sendContactMessage, getServices } from '../lib/api';
 import { ServiceItem } from '../types';
+import { useSiteSettings } from '../context/SettingsContext';
 import { Mail, CheckCircle2, AlertCircle, Send, Sparkles, Clock, MapPin } from 'lucide-react';
 
 export const ContactPage: React.FC = () => {
   const { path } = useRouter();
+  const { settings } = useSiteSettings();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,6 +16,14 @@ export const ContactPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [shakeSubmit, setShakeSubmit] = useState(false);
+
+  const contactEmail = settings.profile?.email || 'urohjohanna25@gmail.com';
+
+  const triggerSubmitShake = () => {
+    setShakeSubmit(true);
+    setTimeout(() => setShakeSubmit(false), 400);
+  };
 
   // Pre-select service if passed in query string (?service=...)
   useEffect(() => {
@@ -43,14 +53,17 @@ export const ContactPage: React.FC = () => {
 
     if (!name.trim()) {
       setErrorMsg('Please enter your name.');
+      triggerSubmitShake();
       return;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setErrorMsg('Please provide a valid email address.');
+      triggerSubmitShake();
       return;
     }
     if (!message.trim() || message.trim().length < 10) {
       setErrorMsg('Please enter a descriptive message (at least 10 characters).');
+      triggerSubmitShake();
       return;
     }
 
@@ -70,6 +83,7 @@ export const ContactPage: React.FC = () => {
     } catch (err: any) {
       console.error('Contact submission failed:', err);
       setErrorMsg(err.message || 'Something went wrong. Please try again.');
+      triggerSubmitShake();
     } finally {
       setIsSubmitting(false);
     }
@@ -104,10 +118,10 @@ export const ContactPage: React.FC = () => {
                     Direct Email
                   </h4>
                   <a
-                    href="mailto:urohjohanna25@gmail.com"
-                    className="text-sm font-semibold text-zinc-900 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                    href={`mailto:${contactEmail}`}
+                    className="text-sm font-semibold link-neon"
                   >
-                    urohjohanna25@gmail.com
+                    {contactEmail}
                   </a>
                 </div>
               </div>
@@ -145,12 +159,9 @@ export const ContactPage: React.FC = () => {
           {/* Right Column: Interactive Form */}
           <div className="lg:col-span-7">
             <div className="rounded-3xl bg-white dark:bg-[#12141a] border border-zinc-200 dark:border-zinc-800 p-8 sm:p-10 shadow-sm">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
                 Send a Message
               </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-                Your message is stored securely in the portfolio database and delivered straight to Johanna&apos;s CMS dashboard.
-              </p>
 
               {successMsg ? (
                 <div className="p-8 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-center space-y-4">
@@ -268,7 +279,9 @@ export const ContactPage: React.FC = () => {
                     id="contact-submit-btn"
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className={`w-full py-3.5 rounded-xl btn-neon-primary text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                      shakeSubmit ? 'neon-shake' : ''
+                    }`}
                   >
                     {isSubmitting ? (
                       <span>Submitting message...</span>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, Link } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useSiteSettings } from '../../context/SettingsContext';
 import { getContactMessages } from '../../lib/api';
 import {
   LayoutDashboard,
@@ -23,7 +24,8 @@ import {
   BarChart3,
   History,
   Globe,
-  ShoppingBag
+  ShoppingBag,
+  Compass
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -35,8 +37,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
   const { path, navigate } = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { settings } = useSiteSettings();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const displayName = settings.profile?.name || user?.name || 'Johanna Uroh';
+  const logoImage = settings.profile?.logoImage;
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'JU';
 
   // Check auth state
   useEffect(() => {
@@ -77,6 +90,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
     { name: 'Projects', href: '/admin/projects', icon: FolderKanban },
     { name: 'Add Project', href: '/admin/projects/new', icon: PlusCircle, highlight: true },
     { name: 'Digital Products', href: '/admin/products', icon: ShoppingBag },
+    { name: 'Mentorship', href: '/admin/mentorship', icon: Compass },
     { name: 'Services', href: '/admin/services', icon: Briefcase },
     { name: 'Testimonials', href: '/admin/testimonials', icon: Quote },
     {
@@ -104,8 +118,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-[#12141a] border-b border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-sm">
-            JU
+          <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-sm">
+            {logoImage ? (
+              <img
+                key={logoImage}
+                src={logoImage}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              initials
+            )}
           </div>
           <span className="font-bold text-sm">Johanna CMS</span>
         </div>
@@ -146,12 +169,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
           {/* Brand header */}
           <div className="p-5 border-b border-zinc-100 dark:border-zinc-800/60">
             <Link to="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-base shadow-md shadow-purple-500/20">
-                JU
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-base shadow-md shadow-purple-500/20 shrink-0">
+                {logoImage ? (
+                  <img
+                    key={logoImage}
+                    src={logoImage}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
               </div>
               <div>
-                <span className="font-bold text-base tracking-tight block">
-                  Johanna Uroh
+                <span className="font-bold text-base tracking-tight block truncate max-w-[140px]">
+                  {displayName}
                 </span>
                 <span className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
                   <Shield className="w-3 h-3" />

@@ -389,6 +389,8 @@ export async function seedDatabase(): Promise<void> {
       ['profile_headline', 'Virtual Assistant & AI Digital Specialist'],
       ['profile_bio', "I turn ideas into useful digital solutions. Exploring the intersection of generative AI, high-impact web design, content strategy, and executive digital operations."],
       ['profile_picture', '/uploads/johanna_uroh_avatar.jpg'],
+      ['profile_logo', ''],
+      ['site_logo', ''],
       ['profile_email', process.env.ADMIN_EMAIL || 'urohjohanna25@gmail.com'],
       ['profile_socials', JSON.stringify({
         linkedin: 'https://linkedin.com',
@@ -611,5 +613,180 @@ export async function seedDatabase(): Promise<void> {
       );
     }
     console.log('Sample digital products seeded successfully.');
+  }
+
+  // Seed Mentorship Programmes if none exist
+  const existingProgrammes = await queryOne<{ count: number }>(
+    'SELECT COUNT(*) as count FROM mentorship_programmes'
+  );
+
+  if (!existingProgrammes || existingProgrammes.count === 0) {
+    const now = new Date().toISOString();
+    const sampleProgrammes = [
+      {
+        id: 'mentorship-beginner-web',
+        name: 'Beginner Web & Digital Foundations',
+        slug: 'beginner-web-digital-foundations',
+        shortDescription: 'Master the fundamentals of the modern web, responsive design, Git version control, and start building hands-on projects from scratch.',
+        fullDescription: `# Beginner Web & Digital Foundations\n\nStart your journey into web development with structured, hands-on mentorship. We break down the essentials of modern HTML, CSS, JavaScript, and developer workflows into digestible, actionable weekly milestones.\n\n### What You Will Experience\n- Step-by-step guidance tailored for complete beginners and early learners.\n- Live paired coding and weekly hands-on project builds.\n- Friendly feedback on code structure, styling, and problem solving.\n- Confidence with terminal, Git, GitHub, and deploying your first live sites.`,
+        coverImage: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=1200&auto=format&fit=crop',
+        duration: '6 Weeks',
+        format: 'Live Weekly Workshops + Async Slack Q&A',
+        sessions: '12 Sessions (2x weekly)',
+        price: 99,
+        currency: 'USD',
+        targetAudience: JSON.stringify([
+          'Absolute beginners looking for structured digital skills mentorship',
+          'Self-taught learners stuck in "tutorial hell" needing accountability',
+          'Designers or non-tech professionals transitioning into tech roles'
+        ]),
+        curriculum: JSON.stringify([
+          'Week 1: Web Architecture, Semantic HTML5 & Modern CSS3 Layouts',
+          'Week 2: Flexbox, CSS Grid & Mobile-First Responsive Design',
+          'Week 3: JavaScript Core Concepts: Variables, DOM, Events & Functions',
+          'Week 4: Asynchronous JavaScript, Fetch API & Working with External Data',
+          'Week 5: Git, GitHub, Version Control & Collaboration Best Practices',
+          'Week 6: Capstone Project Build, Polishing, and Live Cloud Deployment'
+        ]),
+        includedFeatures: JSON.stringify([
+          '12 live group coaching sessions with interactive coding',
+          'Detailed code reviews on every assignment submission',
+          'Direct Telegram / WhatsApp community for rapid answers',
+          'Verified completion certificate & portfolio project piece'
+        ]),
+        expectedOutcomes: JSON.stringify([
+          'Build, style, and deploy responsive websites independently',
+          'Comfortably read, write, and debug clean JavaScript code',
+          'Demonstrate real Git version control and GitHub repositories',
+          'Create 2 portfolio-ready live projects'
+        ]),
+        applicationEnabled: 1,
+        featured: 1,
+        published: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: 'mentorship-fullstack-growth',
+        name: 'Growth & Modern Frontend Engineering',
+        slug: 'growth-modern-frontend-engineering',
+        shortDescription: 'Accelerate from basic coding to production-ready React, TypeScript, modern state management, and full UI engineering workflows.',
+        fullDescription: `# Growth & Modern Frontend Engineering\n\nElevate your skills from writing basic code to engineering robust, scalable web applications. Master the modern React ecosystem, TypeScript strict typing, Tailwind CSS architecture, API integrations, and client-side performance.\n\n### Mentorship Focus\n- Production-grade React paradigms (custom hooks, context, reducer patterns).\n- Confident TypeScript development without "any" workarounds.\n- End-to-end frontend integration with REST & GraphQL backends.\n- Best practices for responsive UI, animations, and accessibility.`,
+        coverImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop',
+        duration: '8 Weeks',
+        format: 'Hybrid: Live Technical Labs + 1-on-1 Milestone Checks',
+        sessions: '16 Sessions (2x weekly)',
+        price: 199,
+        currency: 'USD',
+        targetAudience: JSON.stringify([
+          'Developers with JavaScript basics ready to master React and TypeScript',
+          'Frontend builders seeking real-world software engineering discipline',
+          'Junior developers preparing for mid-level frontend engineering roles'
+        ]),
+        curriculum: JSON.stringify([
+          'Week 1-2: Modern React Deep Dive: Hooks, Lifecycle, and Component Design',
+          'Week 3: TypeScript Foundations & Component Typing in Enterprise React',
+          'Week 4: Tailwind CSS Mastery, Micro-Interactions & Animation Patterns',
+          'Week 5: Client State, Server Caching & Resilient Data Fetching',
+          'Week 6: Authentication Flows, JWT Tokens & Protected Routes',
+          'Week 7: Performance Optimization, Code Splitting & Testing Principles',
+          'Week 8: Full-Stack Capstone Presentation & Technical Portfolio Review'
+        ]),
+        includedFeatures: JSON.stringify([
+          '16 technical lab sessions with live project builds',
+          'Bi-weekly 1-on-1 private check-ins to unblock hurdles',
+          'In-depth PR code reviews on GitHub with line-by-line feedback',
+          'Resume & portfolio review tailored for hiring managers'
+        ]),
+        expectedOutcomes: JSON.stringify([
+          'Ship complex, responsive React + TypeScript applications from scratch',
+          'Implement secure client authentication and API consumption patterns',
+          'Write maintainable, modular, and type-safe frontend architectures',
+          'Graduate with a standout enterprise-grade project for your resume'
+        ]),
+        applicationEnabled: 1,
+        featured: 1,
+        published: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: 'mentorship-1on1-career',
+        name: '1-on-1 Career & Project Mentorship',
+        slug: '1-on-1-career-project-mentorship',
+        shortDescription: 'Dedicated personalized coaching tailored to your individual goals, career transition roadmap, portfolio audit, and mock interviews.',
+        fullDescription: `# 1-on-1 Career & Project Mentorship\n\nA completely bespoke mentorship experience designed around your specific career objectives, current skill gaps, and professional aspirations.\n\nWhether you need an experienced engineer to guide you through building your flagship SaaS product, review your code architecture, optimize your portfolio, or prepare you for technical interviews, this program provides direct personal access and high-touch support.\n\n### How It Works\n1. **Intake & Diagnostic Assessment**: We define your specific 90-day targets.\n2. **Custom Weekly Roadmap**: Targeted milestones designed around your pace.\n3. **Weekly Private Sessions**: Dedicated 60-minute video deep dives.\n4. **Continuous Direct Support**: Direct private messaging for quick async code reviews.`,
+        coverImage: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=1200&auto=format&fit=crop',
+        duration: 'Flexible (4-12 Weeks)',
+        format: 'Private 1-on-1 Video Calls + Direct WhatsApp / Slack Support',
+        sessions: '4 to 12 Dedicated 1-on-1 Calls',
+        price: 249,
+        currency: 'USD',
+        targetAudience: JSON.stringify([
+          'Professionals seeking accelerated personalized guidance',
+          'Engineers building a real-world product or startup prototype',
+          'Career switchers wanting high-touch accountability and mentorship'
+        ]),
+        curriculum: JSON.stringify([
+          'Milestone 1: Skills Diagnostic, Portfolio Audit & Custom Learning Roadmap',
+          'Milestone 2: Flagship Project Architecture & Technology Selection',
+          'Milestone 3: Core Implementation & Production-Ready Code Standards',
+          'Milestone 4: Deployment, CI/CD, Documentation & System Health',
+          'Milestone 5: Technical Resume Polish, GitHub Optimization & Online Presence',
+          'Milestone 6: Mock Technical Interviews & Salary Negotiation Coaching'
+        ]),
+        includedFeatures: JSON.stringify([
+          'Private 1-on-1 weekly video strategy & paired-programming calls',
+          'Unlimited asynchronous code reviews on your personal repositories',
+          'Exclusive access to curated templates, checklists, and interview guides',
+          'Personal referral recommendations and career positioning strategy'
+        ]),
+        expectedOutcomes: JSON.stringify([
+          'Achieve clear technical mastery in your chosen stack',
+          'Have a production-deployed flagship project that proves your abilities',
+          'Stand out in job applications with an optimized portfolio and resume',
+          'Approach technical interviews with confidence and clarity'
+        ]),
+        applicationEnabled: 1,
+        featured: 0,
+        published: 1,
+        createdAt: now,
+        updatedAt: now
+      }
+    ];
+
+    for (const prog of sampleProgrammes) {
+      await execute(
+        `INSERT INTO mentorship_programmes (
+          id, name, slug, shortDescription, fullDescription, coverImage,
+          duration, format, sessions, price, currency, targetAudience,
+          curriculum, includedFeatures, expectedOutcomes, applicationEnabled,
+          featured, published, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          prog.id,
+          prog.name,
+          prog.slug,
+          prog.shortDescription,
+          prog.fullDescription,
+          prog.coverImage,
+          prog.duration,
+          prog.format,
+          prog.sessions,
+          prog.price,
+          prog.currency,
+          prog.targetAudience,
+          prog.curriculum,
+          prog.includedFeatures,
+          prog.expectedOutcomes,
+          prog.applicationEnabled,
+          prog.featured,
+          prog.published,
+          prog.createdAt,
+          prog.updatedAt,
+        ]
+      );
+    }
+    console.log('Sample mentorship programmes seeded successfully.');
   }
 }

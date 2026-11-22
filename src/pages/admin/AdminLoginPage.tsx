@@ -74,7 +74,7 @@ export const AdminLoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
+                  placeholder="urohjohanna25@gmail.com"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-sm focus:outline-none focus:border-purple-500 transition-colors"
                 />
               </div>
@@ -105,7 +105,7 @@ export const AdminLoginPage: React.FC = () => {
               id="admin-login-submit"
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2 cursor-pointer"
             >
               {isLoading ? (
                 <span>Verifying credentials...</span>
@@ -118,6 +118,24 @@ export const AdminLoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          {/* Quick Fill Credentials Helper */}
+          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800/80 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('urohjohanna25@gmail.com');
+                setPassword('johanna2026!');
+                setError(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium cursor-pointer"
+            >
+              <span>Auto-fill Johanna Uroh credentials</span>
+            </button>
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+              urohjohanna25@gmail.com • johanna2026!
+            </p>
+          </div>
         </div>
 
         {/* Back link */}

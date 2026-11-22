@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from './AdminLayout';
-import { chatAdminAI } from '../../lib/api';
+import { streamChatAdminAI } from '../../lib/api';
 import { Sparkles, Send, Bot, User, Copy, Check, RotateCcw, AlertCircle, Lightbulb, FileText, Compass } from 'lucide-react';
 
 interface ChatMessage {
@@ -22,6 +22,7 @@ export const AdminAIPage: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [waitingFirstToken, setWaitingFirstToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export const AdminAIPage: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, loading]);
+  }, [messages, waitingFirstToken]);
 
   const handleSend = async (messageText?: string) => {
     const textToSend = messageText || input;
@@ -69,30 +70,58 @@ export const AdminAIPage: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    const aiMsgId = 'ai_' + (Date.now() + 1);
+    const history = messages
+      .filter((m) => m.id !== 'welcome')
+      .map((m) => ({ role: m.role, content: m.content }));
+
     setMessages((prev) => [...prev, userMsg]);
     if (!messageText) setInput('');
     setLoading(true);
+    setWaitingFirstToken(true);
+
+    let hasInsertedAiBubble = false;
 
     try {
-      // Build conversation history for context
-      const history = messages
-        .filter((m) => m.id !== 'welcome')
-        .map((m) => ({ role: m.role, content: m.content }));
+      const fullReply = await streamChatAdminAI(userMsg.content, history, (delta) => {
+        if (!hasInsertedAiBubble) {
+          hasInsertedAiBubble = true;
+          setWaitingFirstToken(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: aiMsgId,
+              role: 'model',
+              content: delta,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+        } else {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiMsgId ? { ...m, content: m.content + delta } : m))
+          );
+        }
+      });
 
-      const reply = await chatAdminAI(userMsg.content, history);
-
-      const aiMsg: ChatMessage = {
-        id: 'ai_' + Date.now(),
-        role: 'model',
-        content: reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
+      if (!hasInsertedAiBubble) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: aiMsgId,
+            role: 'model',
+            content: fullReply || "I'm ready to assist with your portfolio content.",
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
     } catch (err: any) {
+      if (hasInsertedAiBubble) {
+        setMessages((prev) => prev.filter((m) => m.id !== aiMsgId));
+      }
       setError(err.message || 'Failed to get a response from AI Assistant.');
     } finally {
       setLoading(false);
+      setWaitingFirstToken(false);
     }
   };
 
@@ -227,7 +256,7 @@ export const AdminAIPage: React.FC = () => {
             );
           })}
 
-          {loading && (
+          {waitingFirstToken && (
             <div className="flex gap-3 max-w-3xl mr-auto">
               <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4" />
@@ -236,7 +265,7 @@ export const AdminAIPage: React.FC = () => {
                 <div className="w-2 h-2 rounded-full bg-purple-600 animate-bounce" />
                 <div className="w-2 h-2 rounded-full bg-purple-600 animate-bounce [animation-delay:0.2s]" />
                 <div className="w-2 h-2 rounded-full bg-purple-600 animate-bounce [animation-delay:0.4s]" />
-                <span className="text-xs text-zinc-400 ml-1">Analyzing portfolio knowledge & generating...</span>
+                <span className="text-xs text-zinc-400 ml-1">Generating fast response...</span>
               </div>
             </div>
           )}
@@ -279,7 +308,7 @@ export const AdminAIPage: React.FC = () => {
           </form>
           <div className="flex items-center justify-between text-[11px] text-zinc-400 px-2 pt-2">
             <span>AI drafts do not auto-publish. Always review copy before saving to your public projects.</span>
-            <span>Gemini 3.8 Flash</span>
+            <span>Gemini 4 Hydrogen • Fast Stream</span>
           </div>
         </div>
       </div>

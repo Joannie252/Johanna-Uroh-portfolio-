@@ -260,6 +260,7 @@ export interface SiteSettings {
     headline: string;
     bio: string;
     profilePicture: string;
+    logoImage?: string;
     email: string;
     socials: {
       linkedin?: string;

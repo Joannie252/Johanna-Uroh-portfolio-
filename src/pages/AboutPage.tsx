@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExperienceItem } from '../types';
 import { getExperience } from '../lib/api';
 import { Link } from '../lib/router';
+import { useSiteSettings } from '../context/SettingsContext';
 import {
   Sparkles,
   Calendar,
@@ -16,9 +17,16 @@ import {
 } from 'lucide-react';
 
 export const AboutPage: React.FC = () => {
+  const { settings } = useSiteSettings();
   const [experience, setExperience] = useState<ExperienceItem[]>([]);
   const [education, setEducation] = useState<ExperienceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const profileName = settings.profile?.name || 'Johanna Uroh';
+  const profileBio = settings.profile?.bio || 'I turn ideas into useful digital solutions. Exploring the intersection of AI, technology, content, virtual assistance, and practical digital skills.';
+  const profileHeadline = settings.profile?.headline || 'Digital Specialist & AI';
+  const profilePicture = settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg';
+  const profileEmail = settings.profile?.email || 'urohjohanna25@gmail.com';
 
   useEffect(() => {
     async function load() {
@@ -68,11 +76,11 @@ export const AboutPage: React.FC = () => {
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-white font-display">
-            Hi, I’m Johanna Uroh.
+            Hi, I’m {profileName}.
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-zinc-600 dark:text-zinc-300 leading-relaxed font-light">
-            I turn ideas into useful digital solutions. Exploring the intersection of AI, technology, content, virtual assistance, and practical digital skills.
+            {profileBio}
           </p>
         </div>
 
@@ -94,8 +102,9 @@ export const AboutPage: React.FC = () => {
           <div className="rounded-3xl bg-zinc-50 dark:bg-[#12141a] border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800/80">
               <img
-                src="/uploads/johanna_uroh_avatar.jpg"
-                alt="Johanna Uroh"
+                key={profilePicture}
+                src={profilePicture}
+                alt={profileName}
                 className="w-14 h-14 rounded-2xl object-cover border border-purple-500/30 shadow-sm"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
@@ -104,22 +113,22 @@ export const AboutPage: React.FC = () => {
               />
               <div>
                 <h3 className="font-bold text-sm text-zinc-900 dark:text-white">
-                  Johanna Uroh
+                  {profileName}
                 </h3>
                 <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium block">
-                  Digital Specialist &amp; AI
+                  {profileHeadline}
                 </span>
               </div>
             </div>
             <div className="space-y-3 text-sm">
               <div>
                 <span className="text-xs text-zinc-400 block">Name</span>
-                <span className="font-semibold text-zinc-900 dark:text-white">Johanna Uroh</span>
+                <span className="font-semibold text-zinc-900 dark:text-white">{profileName}</span>
               </div>
               <div>
                 <span className="text-xs text-zinc-400 block">Primary Roles</span>
                 <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                  Virtual Assistant • AI Prompt Specialist • Digital Skills Coach
+                  {profileHeadline}
                 </span>
               </div>
               <div>
@@ -132,10 +141,10 @@ export const AboutPage: React.FC = () => {
               <div>
                 <span className="text-xs text-zinc-400 block">Direct Inquiries</span>
                 <a
-                  href="mailto:urohjohanna25@gmail.com"
-                  className="text-purple-600 dark:text-purple-400 hover:underline font-medium text-xs break-all"
+                  href={`mailto:${profileEmail}`}
+                  className="link-neon font-medium text-xs break-all"
                 >
-                  urohjohanna25@gmail.com
+                  {profileEmail}
                 </a>
               </div>
             </div>
@@ -258,7 +267,7 @@ export const AboutPage: React.FC = () => {
           </div>
           <Link
             to="/contact"
-            className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md shadow-purple-600/20 inline-flex items-center gap-2"
+            className="btn-neon-primary px-6 py-3 text-sm font-semibold shadow-md inline-flex items-center gap-2"
           >
             <span>Get in touch</span>
             <ArrowRight className="w-4 h-4" />

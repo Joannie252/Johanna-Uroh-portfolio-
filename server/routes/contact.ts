@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { query, queryOne, execute, getSetting } from '../db.js';
 import { authenticateAdmin, AuthRequest } from '../auth.js';
 import { ContactMessage } from '../types.js';
+import { sendContactEmails } from '../email.js';
 
 const router = express.Router();
 
@@ -51,39 +52,34 @@ router.post('/', async (req: Request, res: Response) => {
       // Non-blocking
     }
 
-    // 3. Check notification settings
-    const emailNotificationsMaster = await getSetting('email_notifications', 'true');
-    const newContactMessageToggle = await getSetting('notify_contact_message', 'true');
-    const adminNotificationEmail = await getSetting('notification_email', process.env.ADMIN_EMAIL || 'urohjohanna25@gmail.com');
+    // 3. Automated Email Delivery (Humane confirmation to sender + Admin notification)
+    let emailDelivery = {
+      attempted: false,
+      senderDelivered: false,
+      adminDelivered: false,
+      errors: [] as string[],
+    };
 
-    let emailNotificationStatus: {
-      attempted: boolean;
-      delivered: boolean;
-      reason?: string;
-    } = { attempted: false, delivered: false };
-
-    if (emailNotificationsMaster === 'true' && newContactMessageToggle === 'true') {
-      emailNotificationStatus.attempted = true;
-      const isEmailConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-
-      if (isEmailConfigured) {
-        // In environments where SMTP is configured, we dispatch
-        console.log(`[Email Notification] New message from ${name} (${email}). Notification dispatched to ${adminNotificationEmail}`);
-        emailNotificationStatus.delivered = true;
-      } else {
-        // Email service is not configured
-        console.log(`[Email Notification] Email service is not configured. Message stored securely in database (ID: ${id}).`);
-        emailNotificationStatus.delivered = false;
-        emailNotificationStatus.reason = 'Email service is not configured.';
-      }
-    } else {
-      console.log(`[Email Notification] Skipped email dispatch: notifications disabled (master: ${emailNotificationsMaster}, newContactMessage: ${newContactMessageToggle}).`);
+    try {
+      emailDelivery.attempted = true;
+      const result = await sendContactEmails({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        service: service?.trim() || '',
+        message: message.trim(),
+      });
+      emailDelivery.senderDelivered = result.senderDelivered;
+      emailDelivery.adminDelivered = result.adminDelivered;
+      emailDelivery.errors = result.errors;
+    } catch (emailErr: any) {
+      console.error('[Contact Form] Failed to dispatch automated emails:', emailErr);
+      emailDelivery.errors.push(emailErr.message || 'Unknown email error');
     }
 
     res.status(201).json({
       success: true,
-      message: 'Thank you for your message! Johanna will review and get back to you shortly.',
-      notificationStatus: emailNotificationStatus,
+      message: 'Thank you for your message! A confirmation email has been sent to your inbox, and Johanna will review and get back to you shortly.',
+      emailDelivery,
     });
   } catch (err) {
     console.error('Error handling contact submission:', err);
