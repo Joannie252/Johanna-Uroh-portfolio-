@@ -9,7 +9,8 @@ import {
   getNotificationSettings,
   updateNotificationSettings,
   testEmailNotification,
-  uploadImageFile
+  uploadImageFile,
+  resolveAssetUrl
 } from '../../lib/api';
 import {
   Settings,
@@ -344,7 +345,7 @@ export const AdminSettingsPage: React.FC = () => {
                     <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shrink-0">
                       {profilePicture ? (
                         <img
-                          src={profilePicture}
+                          src={resolveAssetUrl(profilePicture)}
                           alt="Johanna Uroh Profile"
                           className="w-full h-full object-cover"
                         />
@@ -400,7 +401,7 @@ export const AdminSettingsPage: React.FC = () => {
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 border border-purple-500/30 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-purple-500/20 shrink-0">
                       {logoImage ? (
                         <img
-                          src={logoImage}
+                          src={resolveAssetUrl(logoImage)}
                           alt="Brand Logo Preview"
                           className="w-full h-full object-cover"
                         />
@@ -448,7 +449,7 @@ export const AdminSettingsPage: React.FC = () => {
                       <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#0b0c10] border border-zinc-200 dark:border-zinc-800 shadow-xs">
                         <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-sm shadow-xs">
                           {logoImage ? (
-                            <img src={logoImage} alt="Logo" className="w-full h-full object-cover" />
+                            <img src={resolveAssetUrl(logoImage)} alt="Logo" className="w-full h-full object-cover" />
                           ) : (
                             initials
                           )}
@@ -467,7 +468,7 @@ export const AdminSettingsPage: React.FC = () => {
                       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-[#12141a] border border-zinc-200 dark:border-zinc-800">
                         <div className="w-6 h-6 rounded-md overflow-hidden bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center text-white font-bold text-xs">
                           {logoImage ? (
-                            <img src={logoImage} alt="Logo" className="w-full h-full object-cover" />
+                            <img src={resolveAssetUrl(logoImage)} alt="Logo" className="w-full h-full object-cover" />
                           ) : (
                             initials
                           )}

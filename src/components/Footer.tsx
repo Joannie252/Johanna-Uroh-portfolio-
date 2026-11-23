@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from '../lib/router';
 import { Mail, Heart } from 'lucide-react';
 import { useSiteSettings } from '../context/SettingsContext';
+import { resolveAssetUrl } from '../lib/api';
 
 export const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -30,7 +31,7 @@ export const Footer: React.FC = () => {
                 {logoImage ? (
                   <img
                     key={logoImage}
-                    src={logoImage}
+                    src={resolveAssetUrl(logoImage)}
                     alt={displayName}
                     className="w-full h-full object-cover"
                   />

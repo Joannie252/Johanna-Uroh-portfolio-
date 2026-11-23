@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { useRouter, Link } from '../../lib/router';
-import { getProjects, publishProject, unpublishProject, deleteProject } from '../../lib/api';
+import { getProjects, publishProject, unpublishProject, deleteProject, resolveAssetUrl } from '../../lib/api';
 import { Project, ProjectStatus } from '../../types';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
 import {
@@ -173,7 +173,7 @@ export const AdminProjectsPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <img
-                            src={p.coverImage || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop'}
+                            src={resolveAssetUrl(p.coverImage) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop'}
                             alt=""
                             className="w-12 h-12 rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800 shrink-0"
                           />

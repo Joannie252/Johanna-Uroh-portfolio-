@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from './AdminLayout';
 import { Link } from '../../lib/router';
-import { getDashboardStats, publishProject, unpublishProject, deleteProject, streamChatAdminAI } from '../../lib/api';
+import { getDashboardStats, publishProject, unpublishProject, deleteProject, streamChatAdminAI, resolveAssetUrl } from '../../lib/api';
 import { DashboardData } from '../../types';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
 import {
@@ -372,7 +372,7 @@ export const AdminDashboardPage: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <img
-                            src={p.coverImage || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop'}
+                            src={resolveAssetUrl(p.coverImage) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop'}
                             alt=""
                             className="w-10 h-10 rounded-lg object-cover bg-zinc-100 dark:bg-zinc-800 shrink-0"
                           />

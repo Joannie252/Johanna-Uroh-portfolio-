@@ -3,6 +3,7 @@ import { Link, useRouter } from '../lib/router';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useSiteSettings } from '../context/SettingsContext';
+import { resolveAssetUrl } from '../lib/api';
 import { Sun, Moon, Menu, X, ArrowRight } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -124,7 +125,7 @@ export const Navbar: React.FC = () => {
               {logoImage ? (
                 <img
                   key={logoImage}
-                  src={logoImage}
+                  src={resolveAssetUrl(logoImage)}
                   alt={displayName}
                   className="w-full h-full object-cover"
                 />

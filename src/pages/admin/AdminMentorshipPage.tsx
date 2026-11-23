@@ -11,6 +11,7 @@ import {
   getAdminMentorshipApplications,
   updateMentorshipApplicationStatus,
   deleteMentorshipApplication,
+  resolveAssetUrl,
 } from '../../lib/api';
 import { ImageUpload } from '../../components/ImageUpload';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
@@ -463,7 +464,7 @@ export const AdminMentorshipPage: React.FC = () => {
                   >
                     <div className="relative h-44 bg-zinc-100 dark:bg-zinc-900 overflow-hidden">
                       <img
-                        src={prog.coverImage}
+                        src={resolveAssetUrl(prog.coverImage)}
                         alt={prog.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover"

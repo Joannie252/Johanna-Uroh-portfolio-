@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExperienceItem } from '../types';
-import { getExperience } from '../lib/api';
+import { getExperience, resolveAssetUrl } from '../lib/api';
 import { Link } from '../lib/router';
 import { useSiteSettings } from '../context/SettingsContext';
 import {
@@ -25,7 +25,7 @@ export const AboutPage: React.FC = () => {
   const profileName = settings.profile?.name || 'Johanna Uroh';
   const profileBio = settings.profile?.bio || 'I turn ideas into useful digital solutions. Exploring the intersection of AI, technology, content, virtual assistance, and practical digital skills.';
   const profileHeadline = settings.profile?.headline || 'Digital Specialist & AI';
-  const profilePicture = settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg';
+  const profilePicture = resolveAssetUrl(settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg');
   const profileEmail = settings.profile?.email || 'urohjohanna25@gmail.com';
 
   useEffect(() => {

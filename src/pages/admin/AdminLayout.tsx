@@ -3,7 +3,7 @@ import { useRouter, Link } from '../../lib/router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSiteSettings } from '../../context/SettingsContext';
-import { getContactMessages } from '../../lib/api';
+import { getContactMessages, resolveAssetUrl } from '../../lib/api';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -122,7 +122,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
             {logoImage ? (
               <img
                 key={logoImage}
-                src={logoImage}
+                src={resolveAssetUrl(logoImage)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
@@ -173,7 +173,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeTab })
                 {logoImage ? (
                   <img
                     key={logoImage}
-                    src={logoImage}
+                    src={resolveAssetUrl(logoImage)}
                     alt={displayName}
                     className="w-full h-full object-cover"
                   />

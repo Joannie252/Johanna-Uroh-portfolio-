@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
-import { getProducts } from '../lib/api';
+import { getProducts, resolveAssetUrl } from '../lib/api';
 import { Link } from '../lib/router';
 import { BookOpen, Search, ArrowRight, CheckCircle2, ShoppingBag, Sparkles, Filter } from 'lucide-react';
 
@@ -193,7 +193,7 @@ export const ResourcesPage: React.FC = () => {
                   {/* Cover Image */}
                   <Link to={`/resources/${product.slug}`} className="relative aspect-[16/10] overflow-hidden block bg-zinc-100 dark:bg-zinc-800">
                     <img
-                      src={product.coverImage}
+                      src={resolveAssetUrl(product.coverImage)}
                       alt={product.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"

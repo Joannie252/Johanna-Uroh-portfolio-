@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '../lib/router';
 import { Project, ServiceItem, TestimonialItem, Product, MentorshipProgramme } from '../types';
-import { getProjects, getServices, getTestimonials, sendContactMessage, getProducts, getMentorshipProgrammes } from '../lib/api';
+import { getProjects, getServices, getTestimonials, sendContactMessage, getProducts, getMentorshipProgrammes, resolveAssetUrl } from '../lib/api';
 import { useSiteSettings } from '../context/SettingsContext';
 import { ProjectCard } from '../components/ProjectCard';
 import { AnimatedNetworkVisual } from '../components/AnimatedNetworkVisual';
@@ -52,7 +52,7 @@ export const HomePage: React.FC = () => {
   const profileName = settings.profile?.name || 'Johanna Uroh';
   const profileHeadline = settings.profile?.headline || 'AI Digital Specialist & Executive VA';
   const profileBio = settings.profile?.bio || 'I’m Johanna Uroh — a digital specialist working across AI, digital systems, virtual assistance, web solutions and practical digital skills. I combine technology, creativity and problem-solving to turn ideas into useful solutions.';
-  const profilePicture = settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg';
+  const profilePicture = resolveAssetUrl(settings.profile?.profilePicture || '/uploads/johanna_uroh_avatar.jpg');
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
@@ -652,7 +652,7 @@ export const HomePage: React.FC = () => {
                       className="relative aspect-[16/10] overflow-hidden block bg-zinc-100 dark:bg-zinc-800"
                     >
                       <img
-                        src={product.coverImage}
+                        src={resolveAssetUrl(product.coverImage)}
                         alt={product.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
@@ -750,7 +750,7 @@ export const HomePage: React.FC = () => {
                       className="relative aspect-[16/10] overflow-hidden block bg-zinc-100 dark:bg-zinc-800"
                     >
                       <img
-                        src={prog.coverImage}
+                        src={resolveAssetUrl(prog.coverImage)}
                         alt={prog.name}
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -917,7 +917,7 @@ export const HomePage: React.FC = () => {
                   <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center gap-3">
                     {test.avatarUrl ? (
                       <img
-                        src={test.avatarUrl}
+                        src={resolveAssetUrl(test.avatarUrl)}
                         alt={test.clientName}
                         className="w-10 h-10 rounded-full object-cover"
                       />

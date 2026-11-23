@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MentorshipProgramme } from '../types';
-import { getMentorshipProgrammes } from '../lib/api';
+import { getMentorshipProgrammes, resolveAssetUrl } from '../lib/api';
 import { Link } from '../lib/router';
 import {
   Compass,
@@ -235,7 +235,7 @@ export const MentorshipPage: React.FC = () => {
                   {/* Top Cover Image */}
                   <div className="relative h-52 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-900">
                     <img
-                      src={prog.coverImage}
+                      src={resolveAssetUrl(prog.coverImage)}
                       alt={prog.name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"

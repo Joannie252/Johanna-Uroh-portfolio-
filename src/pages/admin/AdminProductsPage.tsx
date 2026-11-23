@@ -8,6 +8,7 @@ import {
   deleteProduct,
   publishProduct,
   unpublishProduct,
+  resolveAssetUrl,
 } from '../../lib/api';
 import { ImageUpload } from '../../components/ImageUpload';
 import { DeleteConfirmModal } from '../../components/DeleteConfirmModal';
@@ -337,7 +338,7 @@ export const AdminProductsPage: React.FC = () => {
                     {/* Left: Thumbnail & Details */}
                     <div className="flex items-start gap-4">
                       <img
-                        src={p.coverImage}
+                        src={resolveAssetUrl(p.coverImage)}
                         alt={p.title}
                         className="w-20 h-14 object-cover rounded-xl border border-zinc-200 dark:border-zinc-800 shrink-0 bg-zinc-100 dark:bg-zinc-800"
                       />

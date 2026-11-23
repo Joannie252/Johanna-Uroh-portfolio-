@@ -2,6 +2,33 @@ import { Project, ServiceItem, TestimonialItem, ExperienceItem, ContactMessage, 
 
 const TOKEN_KEY = 'johanna_admin_token';
 
+// Centralized API base URL for split Vercel frontend + Cloud Run CMS deployments.
+// Empty string preserves relative same-origin requests in local dev and Google AI Studio.
+const RAW_API_BASE_URL = (import.meta.env.VITE_API_URL || '').trim();
+export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
+
+export function apiUrl(endpoint: string): string {
+  if (/^https?:\/\//i.test(endpoint)) {
+    return endpoint;
+  }
+  const normalizedPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
+}
+
+export function resolveAssetUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
+    const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
+  }
+  return trimmed;
+}
+
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -19,14 +46,56 @@ function getAuthHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function apiFetch(endpoint: string, init?: RequestInit): Promise<Response> {
+  const url = apiUrl(endpoint);
+  const method = (init?.method || 'GET').toUpperCase();
+
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (err: any) {
+    const reason = err?.message || 'Network or CORS request failed';
+    console.error(`[API Network Error] ${method} ${url}: ${reason}`);
+    throw new Error(`Unable to reach CMS API (${reason})`);
+  }
+
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  if (res.ok && contentType.includes('text/html') && !endpoint.includes('/stream')) {
+    console.error(
+      `[API Format Error] ${method} ${url} returned HTML (HTTP ${res.status}) instead of JSON. Check VITE_API_URL configuration.`
+    );
+    throw new Error('CMS API returned HTML instead of JSON. Verify VITE_API_URL points to the backend service.');
+  }
+
+  if (!res.ok) {
+    console.warn(`[API HTTP ${res.status}] ${method} ${url}`);
+  }
+
+  return res;
+}
+
+async function parseJsonSafe<T = any>(res: Response, fallbackError: string): Promise<T> {
+  const text = await res.text();
+  if (!text) {
+    if (!res.ok) throw new Error(fallbackError);
+    return {} as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    console.error(`[API Parse Error] Invalid JSON response (HTTP ${res.status}) from ${res.url || 'endpoint'}`);
+    throw new Error(fallbackError);
+  }
+}
+
 // Auth API
 export async function loginAdmin(email: string, password: string): Promise<{ token: string; user: AdminUser }> {
-  const res = await fetch('/api/auth/login', {
+  const res = await apiFetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<{ token: string; user: AdminUser; error?: string }>(res, 'Login failed');
   if (!res.ok) {
     throw new Error(data.error || 'Login failed');
   }
@@ -36,7 +105,7 @@ export async function loginAdmin(email: string, password: string): Promise<{ tok
 
 export async function logoutAdmin(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST', headers: getAuthHeaders() });
+    await apiFetch('/api/auth/logout', { method: 'POST', headers: getAuthHeaders() });
   } finally {
     removeStoredToken();
   }
@@ -46,7 +115,7 @@ export async function getCurrentAdmin(): Promise<AdminUser | null> {
   const token = getStoredToken();
   if (!token) return null;
   try {
-    const res = await fetch('/api/auth/me', {
+    const res = await apiFetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
@@ -78,19 +147,20 @@ export async function getProjects(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.all) query.set('all', 'true');
 
-  const res = await fetch(`/api/projects?${query.toString()}`, {
+  const res = await apiFetch(`/api/projects?${query.toString()}`, {
     headers: getAuthHeaders(),
     cache: 'no-store',
   });
   if (!res.ok) {
-    throw new Error('Failed to fetch projects');
+    const errBody = await parseJsonSafe<{ error?: string }>(res, 'Failed to fetch projects').catch(() => ({ error: undefined }));
+    throw new Error(errBody.error || `Failed to fetch projects (HTTP ${res.status})`);
   }
-  return res.json();
+  return parseJsonSafe<Project[]>(res, 'Invalid projects response from CMS');
 }
 
 export async function getProjectBySlug(slug: string, preview?: boolean): Promise<Project> {
   const query = preview ? '?preview=true' : '';
-  const res = await fetch(`/api/projects/${encodeURIComponent(slug)}${query}`, {
+  const res = await apiFetch(`/api/projects/${encodeURIComponent(slug)}${query}`, {
     headers: getAuthHeaders(),
     cache: 'no-store',
   });
@@ -101,7 +171,7 @@ export async function getProjectBySlug(slug: string, preview?: boolean): Promise
 }
 
 export async function createProject(data: Partial<Project>): Promise<Project> {
-  const res = await fetch('/api/projects', {
+  const res = await apiFetch('/api/projects', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -109,7 +179,7 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
     },
     body: JSON.stringify(data),
   });
-  const result = await res.json();
+  const result = await parseJsonSafe<Project & { error?: string }>(res, 'Failed to create project');
   if (!res.ok) {
     throw new Error(result.error || 'Failed to create project');
   }
@@ -120,7 +190,7 @@ export async function createProject(data: Partial<Project>): Promise<Project> {
 }
 
 export async function updateProject(id: string, data: Partial<Project>): Promise<Project> {
-  const res = await fetch(`/api/projects/${id}`, {
+  const res = await apiFetch(`/api/projects/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -128,7 +198,7 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
     },
     body: JSON.stringify(data),
   });
-  const result = await res.json();
+  const result = await parseJsonSafe<Project & { error?: string }>(res, 'Failed to update project');
   if (!res.ok) {
     throw new Error(result.error || 'Failed to update project');
   }
@@ -139,11 +209,11 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
 }
 
 export async function publishProject(id: string): Promise<Project> {
-  const res = await fetch(`/api/projects/${id}/publish`, {
+  const res = await apiFetch(`/api/projects/${id}/publish`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
   });
-  const result = await res.json();
+  const result = await parseJsonSafe<Project & { error?: string }>(res, 'Failed to publish project');
   if (!res.ok) {
     throw new Error(result.error || 'Failed to publish project');
   }
@@ -154,11 +224,11 @@ export async function publishProject(id: string): Promise<Project> {
 }
 
 export async function unpublishProject(id: string): Promise<Project> {
-  const res = await fetch(`/api/projects/${id}/unpublish`, {
+  const res = await apiFetch(`/api/projects/${id}/unpublish`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
   });
-  const result = await res.json();
+  const result = await parseJsonSafe<Project & { error?: string }>(res, 'Failed to unpublish project');
   if (!res.ok) {
     throw new Error(result.error || 'Failed to unpublish project');
   }
@@ -169,7 +239,7 @@ export async function unpublishProject(id: string): Promise<Project> {
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}`, {
+  const res = await apiFetch(`/api/projects/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -188,13 +258,13 @@ export async function uploadImageFile(file: File, alt?: string): Promise<{ url: 
   formData.append('file', file);
   if (alt) formData.append('alt', alt);
 
-  const res = await fetch('/api/upload', {
+  const res = await apiFetch('/api/upload', {
     method: 'POST',
     headers: getAuthHeaders(),
     body: formData,
   });
 
-  const data = await res.json();
+  const data = await parseJsonSafe<{ url: string; filename: string; error?: string }>(res, 'Failed to upload image');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to upload image');
   }
@@ -203,35 +273,35 @@ export async function uploadImageFile(file: File, alt?: string): Promise<{ url: 
 
 // Services API
 export async function getServices(): Promise<ServiceItem[]> {
-  const res = await fetch('/api/services', { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to load services');
+  const res = await apiFetch('/api/services', { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(`Failed to load services (HTTP ${res.status})`);
   return res.json();
 }
 
 export async function createService(service: Partial<ServiceItem>): Promise<ServiceItem> {
-  const res = await fetch('/api/services', {
+  const res = await apiFetch('/api/services', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(service),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<ServiceItem & { error?: string }>(res, 'Failed to create service');
   if (!res.ok) throw new Error(data.error || 'Failed to create service');
   return data;
 }
 
 export async function updateService(id: string, service: Partial<ServiceItem>): Promise<ServiceItem> {
-  const res = await fetch(`/api/services/${id}`, {
+  const res = await apiFetch(`/api/services/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(service),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<ServiceItem & { error?: string }>(res, 'Failed to update service');
   if (!res.ok) throw new Error(data.error || 'Failed to update service');
   return data;
 }
 
 export async function deleteService(id: string): Promise<void> {
-  const res = await fetch(`/api/services/${id}`, {
+  const res = await apiFetch(`/api/services/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -240,35 +310,35 @@ export async function deleteService(id: string): Promise<void> {
 
 // Testimonials API
 export async function getTestimonials(): Promise<TestimonialItem[]> {
-  const res = await fetch('/api/testimonials', { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error('Failed to load testimonials');
+  const res = await apiFetch('/api/testimonials', { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(`Failed to load testimonials (HTTP ${res.status})`);
   return res.json();
 }
 
 export async function createTestimonial(item: Partial<TestimonialItem>): Promise<TestimonialItem> {
-  const res = await fetch('/api/testimonials', {
+  const res = await apiFetch('/api/testimonials', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(item),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<TestimonialItem & { error?: string }>(res, 'Failed to create testimonial');
   if (!res.ok) throw new Error(data.error || 'Failed to create testimonial');
   return data;
 }
 
 export async function updateTestimonial(id: string, item: Partial<TestimonialItem>): Promise<TestimonialItem> {
-  const res = await fetch(`/api/testimonials/${id}`, {
+  const res = await apiFetch(`/api/testimonials/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(item),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<TestimonialItem & { error?: string }>(res, 'Failed to update testimonial');
   if (!res.ok) throw new Error(data.error || 'Failed to update testimonial');
   return data;
 }
 
 export async function deleteTestimonial(id: string): Promise<void> {
-  const res = await fetch(`/api/testimonials/${id}`, {
+  const res = await apiFetch(`/api/testimonials/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -278,35 +348,35 @@ export async function deleteTestimonial(id: string): Promise<void> {
 // Experience API
 export async function getExperience(type?: 'experience' | 'education'): Promise<ExperienceItem[]> {
   const query = type ? `?type=${type}` : '';
-  const res = await fetch(`/api/experience${query}`);
+  const res = await apiFetch(`/api/experience${query}`);
   if (!res.ok) throw new Error('Failed to load experience items');
   return res.json();
 }
 
 export async function createExperience(item: Partial<ExperienceItem>): Promise<ExperienceItem> {
-  const res = await fetch('/api/experience', {
+  const res = await apiFetch('/api/experience', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(item),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<ExperienceItem & { error?: string }>(res, 'Failed to save experience item');
   if (!res.ok) throw new Error(data.error || 'Failed to save experience item');
   return data;
 }
 
 export async function updateExperience(id: string, item: Partial<ExperienceItem>): Promise<ExperienceItem> {
-  const res = await fetch(`/api/experience/${id}`, {
+  const res = await apiFetch(`/api/experience/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(item),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<ExperienceItem & { error?: string }>(res, 'Failed to update experience item');
   if (!res.ok) throw new Error(data.error || 'Failed to update experience item');
   return data;
 }
 
 export async function deleteExperience(id: string): Promise<void> {
-  const res = await fetch(`/api/experience/${id}`, {
+  const res = await apiFetch(`/api/experience/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -320,12 +390,12 @@ export async function sendContactMessage(data: {
   service?: string;
   message: string;
 }): Promise<{ message: string }> {
-  const res = await fetch('/api/contact', {
+  const res = await apiFetch('/api/contact', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const result = await res.json();
+  const result = await parseJsonSafe<{ message: string; error?: string }>(res, 'Failed to send message');
   if (!res.ok) {
     throw new Error(result.error || 'Failed to send message');
   }
@@ -333,23 +403,23 @@ export async function sendContactMessage(data: {
 }
 
 export async function getContactMessages(): Promise<ContactMessage[]> {
-  const res = await fetch('/api/contact', { headers: getAuthHeaders() });
+  const res = await apiFetch('/api/contact', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to load messages');
   return res.json();
 }
 
 export async function markMessageRead(id: string): Promise<ContactMessage> {
-  const res = await fetch(`/api/contact/${id}/read`, {
+  const res = await apiFetch(`/api/contact/${id}/read`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<ContactMessage>(res, 'Failed to update message');
   if (!res.ok) throw new Error('Failed to update message');
   return data;
 }
 
 export async function deleteContactMessage(id: string): Promise<void> {
-  const res = await fetch(`/api/contact/${id}`, {
+  const res = await apiFetch(`/api/contact/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -358,7 +428,7 @@ export async function deleteContactMessage(id: string): Promise<void> {
 
 // Stats API
 export async function getDashboardStats(): Promise<DashboardData> {
-  const res = await fetch('/api/stats', { headers: getAuthHeaders() });
+  const res = await apiFetch('/api/stats', { headers: getAuthHeaders() });
   if (!res.ok) throw new Error('Failed to retrieve dashboard stats');
   return res.json();
 }
@@ -373,12 +443,12 @@ export async function generateProjectDetails(params: {
   requestedField?: string;
   notes?: string;
 }): Promise<any> {
-  const res = await fetch('/api/ai/generate-project-details', {
+  const res = await apiFetch('/api/ai/generate-project-details', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(params),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<any>(res, 'Failed to generate project details');
   if (!res.ok) throw new Error(data.error || 'Failed to generate project details');
   return data.data;
 }
@@ -400,12 +470,12 @@ export async function improveTextWithAI(
       ? { text: textOrParams, mode: 'improve', context: instruction }
       : textOrParams;
 
-  const res = await fetch('/api/ai/improve-text', {
+  const res = await apiFetch('/api/ai/improve-text', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<any>(res, 'Failed to improve text');
   if (!res.ok) throw new Error(data.error || 'Failed to improve text');
   if (typeof textOrParams === 'string') {
     return data.suggestion || data.text || '';
@@ -431,12 +501,12 @@ export async function generateAltTextWithAI(
       ? { filename: paramsOrContext, projectTitle: maybeTitle }
       : paramsOrContext;
 
-  const res = await fetch('/api/ai/generate-alt-text', {
+  const res = await apiFetch('/api/ai/generate-alt-text', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<{ altText: string; error?: string }>(res, 'Failed to generate alt text');
   if (!res.ok) throw new Error(data.error || 'Failed to generate alt text');
   return data.altText;
 }
@@ -447,12 +517,12 @@ export async function chatAdminAI(
   message: string,
   conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<string> {
-  const res = await fetch('/api/ai/chat-admin', {
+  const res = await apiFetch('/api/ai/chat-admin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ message, conversationHistory }),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<{ reply: string; error?: string }>(res, 'AI Assistant request failed');
   if (!res.ok) throw new Error(data.error || 'AI Assistant request failed');
   return data.reply;
 }
@@ -462,7 +532,7 @@ export async function streamChatAdminAI(
   conversationHistory: Array<{ role: string; content: string }> = [],
   onChunk: (delta: string) => void
 ): Promise<string> {
-  const res = await fetch('/api/ai/chat-admin', {
+  const res = await apiFetch('/api/ai/chat-admin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ message, conversationHistory, stream: true }),
@@ -524,7 +594,7 @@ export async function chatPublicAI(
   message: string,
   conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<{ reply: string; suggestedAction?: string }> {
-  const res = await fetch('/api/ai/chat-public', {
+  const res = await apiFetch('/api/ai/chat-public', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, conversationHistory }),
@@ -558,7 +628,7 @@ export async function recordAnalyticsEvent(event: {
   referrer?: string;
 }): Promise<void> {
   try {
-    await fetch('/api/analytics/event', {
+    await apiFetch('/api/analytics/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -574,7 +644,7 @@ export async function recordAnalyticsEvent(event: {
 }
 
 export async function getAnalyticsOverview(range: string = '30d'): Promise<import('../types').AnalyticsOverview> {
-  const res = await fetch(`/api/analytics/overview?range=${range}`, {
+  const res = await apiFetch(`/api/analytics/overview?range=${range}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to retrieve analytics overview');
@@ -582,7 +652,7 @@ export async function getAnalyticsOverview(range: string = '30d'): Promise<impor
 }
 
 export async function getProjectAnalytics(idOrSlug: string): Promise<import('../types').ProjectAnalytics> {
-  const res = await fetch(`/api/analytics/project/${encodeURIComponent(idOrSlug)}`, {
+  const res = await apiFetch(`/api/analytics/project/${encodeURIComponent(idOrSlug)}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to retrieve project analytics');
@@ -590,7 +660,7 @@ export async function getProjectAnalytics(idOrSlug: string): Promise<import('../
 }
 
 export async function getSearchAnalytics(): Promise<Array<{ query: string; count: number; lastSearchedAt: string }>> {
-  const res = await fetch('/api/analytics/searches', {
+  const res = await apiFetch('/api/analytics/searches', {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to retrieve search analytics');
@@ -603,14 +673,14 @@ export async function searchProjects(query: string, category?: string): Promise<
   if (query) params.set('q', query);
   if (category && category !== 'All') params.set('category', category);
 
-  const res = await fetch(`/api/search?${params.toString()}`);
+  const res = await apiFetch(`/api/search?${params.toString()}`);
   if (!res.ok) throw new Error('Failed to search projects');
   return res.json();
 }
 
 export async function getPopularSearches(): Promise<string[]> {
   try {
-    const res = await fetch('/api/search/popular');
+    const res = await apiFetch('/api/search/popular');
     if (!res.ok) return ['AI', 'Virtual Assistant', 'React', 'Google AI Studio'];
     return res.json();
   } catch {
@@ -621,7 +691,7 @@ export async function getPopularSearches(): Promise<string[]> {
 export async function recordSearchQuery(query: string, resultCount?: number): Promise<void> {
   if (!query || !query.trim()) return;
   try {
-    await fetch('/api/analytics/search-record', {
+    await apiFetch('/api/analytics/search-record', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: query.trim(), resultCount }),
@@ -633,7 +703,7 @@ export async function recordSearchQuery(query: string, resultCount?: number): Pr
 
 // Activity Log API
 export async function getActivityLogs(): Promise<import('../types').ActivityLog[]> {
-  const res = await fetch('/api/activity', {
+  const res = await apiFetch('/api/activity', {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to retrieve activity log');
@@ -642,7 +712,7 @@ export async function getActivityLogs(): Promise<import('../types').ActivityLog[
 
 // Settings API
 export async function getPublicSettings(): Promise<import('../types').SiteSettings> {
-  const res = await fetch('/api/settings', { cache: 'no-store' });
+  const res = await apiFetch('/api/settings', { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to load site settings');
   return res.json();
 }
@@ -652,7 +722,7 @@ export async function getAdminSettings(): Promise<{
   emailServiceConfigured: boolean;
   emailServiceDetails: string;
 }> {
-  const res = await fetch('/api/settings/all', {
+  const res = await apiFetch('/api/settings/all', {
     headers: getAuthHeaders(),
     cache: 'no-store',
   });
@@ -661,13 +731,13 @@ export async function getAdminSettings(): Promise<{
 }
 
 export async function updateAdminSettings(updates: Record<string, any>): Promise<void> {
-  const res = await fetch('/api/settings', {
+  const res = await apiFetch('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ updates }),
   });
   if (!res.ok) {
-    const data = await res.json();
+    const data = await parseJsonSafe<{ error?: string }>(res, 'Failed to update settings');
     throw new Error(data.error || 'Failed to update settings');
   }
   if (typeof window !== 'undefined') {
@@ -677,7 +747,7 @@ export async function updateAdminSettings(updates: Record<string, any>): Promise
 }
 
 export async function getNotificationSettings(): Promise<import('../types').NotificationSettings> {
-  const res = await fetch('/api/settings/notifications', {
+  const res = await apiFetch('/api/settings/notifications', {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to load notification settings');
@@ -695,23 +765,23 @@ export async function updateNotificationSettings(data: {
     importantSystemAlerts: boolean;
   };
 }): Promise<void> {
-  const res = await fetch('/api/settings/notifications', {
+  const res = await apiFetch('/api/settings/notifications', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    const err = await res.json();
+    const err = await parseJsonSafe<{ error?: string }>(res, 'Failed to update notification settings');
     throw new Error(err.error || 'Failed to update notification settings');
   }
 }
 
 export async function testEmailNotification(): Promise<{ message: string }> {
-  const res = await fetch('/api/settings/test-email', {
+  const res = await apiFetch('/api/settings/test-email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<{ message: string; error?: string }>(res, 'Email test failed');
   if (!res.ok) {
     throw new Error(data.error || 'Email test failed');
   }
@@ -733,7 +803,7 @@ export async function getProducts(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.all) query.set('all', 'true');
 
-  const res = await fetch(`/api/products?${query.toString()}`, {
+  const res = await apiFetch(`/api/products?${query.toString()}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -743,7 +813,7 @@ export async function getProducts(params?: {
 }
 
 export async function getProductBySlug(slug: string): Promise<Product> {
-  const res = await fetch(`/api/products/${encodeURIComponent(slug)}`, {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(slug)}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -753,12 +823,12 @@ export async function getProductBySlug(slug: string): Promise<Product> {
 }
 
 export async function createProduct(productData: Partial<Product>): Promise<Product> {
-  const res = await fetch('/api/products', {
+  const res = await apiFetch('/api/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(productData),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<Product & { error?: string }>(res, 'Failed to create digital product');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to create digital product');
   }
@@ -766,12 +836,12 @@ export async function createProduct(productData: Partial<Product>): Promise<Prod
 }
 
 export async function updateProduct(id: string, productData: Partial<Product>): Promise<Product> {
-  const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(productData),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<Product & { error?: string }>(res, 'Failed to update digital product');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to update digital product');
   }
@@ -779,12 +849,12 @@ export async function updateProduct(id: string, productData: Partial<Product>): 
 }
 
 export async function publishProduct(id: string): Promise<Product> {
-  const res = await fetch(`/api/products/${encodeURIComponent(id)}/publish`, {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(id)}/publish`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ published: true }),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<Product & { error?: string }>(res, 'Failed to publish digital product');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to publish digital product');
   }
@@ -792,12 +862,12 @@ export async function publishProduct(id: string): Promise<Product> {
 }
 
 export async function unpublishProduct(id: string): Promise<Product> {
-  const res = await fetch(`/api/products/${encodeURIComponent(id)}/publish`, {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(id)}/publish`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ published: false }),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<Product & { error?: string }>(res, 'Failed to unpublish digital product');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to unpublish digital product');
   }
@@ -805,12 +875,12 @@ export async function unpublishProduct(id: string): Promise<Product> {
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/products/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    const data = await res.json();
+    const data = await parseJsonSafe<{ error?: string }>(res, 'Failed to delete digital product');
     throw new Error(data.error || 'Failed to delete digital product');
   }
 }
@@ -831,7 +901,7 @@ export async function getMentorshipProgrammes(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.all) query.set('all', 'true');
 
-  const res = await fetch(`/api/mentorship/programmes?${query.toString()}`, {
+  const res = await apiFetch(`/api/mentorship/programmes?${query.toString()}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -841,7 +911,7 @@ export async function getMentorshipProgrammes(params?: {
 }
 
 export async function getMentorshipProgrammeBySlug(slug: string): Promise<MentorshipProgramme> {
-  const res = await fetch(`/api/mentorship/programmes/${encodeURIComponent(slug)}`, {
+  const res = await apiFetch(`/api/mentorship/programmes/${encodeURIComponent(slug)}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -864,12 +934,15 @@ export async function submitMentorshipApplication(data: {
   availability: string;
   portfolioLink?: string;
 }): Promise<{ success: boolean; message: string; applicationId: string }> {
-  const res = await fetch('/api/mentorship/apply', {
+  const res = await apiFetch('/api/mentorship/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const json = await res.json();
+  const json = await parseJsonSafe<{ success: boolean; message: string; applicationId: string; error?: string }>(
+    res,
+    'Failed to submit mentorship application'
+  );
   if (!res.ok) {
     throw new Error(json.error || 'Failed to submit mentorship application');
   }
@@ -877,7 +950,7 @@ export async function submitMentorshipApplication(data: {
 }
 
 export async function getAdminMentorshipProgrammes(): Promise<MentorshipProgramme[]> {
-  const res = await fetch('/api/mentorship/admin/programmes', {
+  const res = await apiFetch('/api/mentorship/admin/programmes', {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -889,12 +962,12 @@ export async function getAdminMentorshipProgrammes(): Promise<MentorshipProgramm
 export async function createMentorshipProgramme(
   programmeData: Partial<MentorshipProgramme>
 ): Promise<MentorshipProgramme> {
-  const res = await fetch('/api/mentorship/admin/programmes', {
+  const res = await apiFetch('/api/mentorship/admin/programmes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(programmeData),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<MentorshipProgramme & { error?: string }>(res, 'Failed to create mentorship programme');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to create mentorship programme');
   }
@@ -905,12 +978,12 @@ export async function updateMentorshipProgramme(
   id: string,
   programmeData: Partial<MentorshipProgramme>
 ): Promise<MentorshipProgramme> {
-  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(programmeData),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<MentorshipProgramme & { error?: string }>(res, 'Failed to update mentorship programme');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to update mentorship programme');
   }
@@ -918,22 +991,22 @@ export async function updateMentorshipProgramme(
 }
 
 export async function deleteMentorshipProgramme(id: string): Promise<void> {
-  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    const data = await res.json();
+    const data = await parseJsonSafe<{ error?: string }>(res, 'Failed to delete mentorship programme');
     throw new Error(data.error || 'Failed to delete mentorship programme');
   }
 }
 
 export async function togglePublishMentorshipProgramme(id: string): Promise<MentorshipProgramme> {
-  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-publish`, {
+  const res = await apiFetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-publish`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<MentorshipProgramme & { error?: string }>(res, 'Failed to toggle published status');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to toggle published status');
   }
@@ -941,11 +1014,11 @@ export async function togglePublishMentorshipProgramme(id: string): Promise<Ment
 }
 
 export async function toggleFeaturedMentorshipProgramme(id: string): Promise<MentorshipProgramme> {
-  const res = await fetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-featured`, {
+  const res = await apiFetch(`/api/mentorship/admin/programmes/${encodeURIComponent(id)}/toggle-featured`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<MentorshipProgramme & { error?: string }>(res, 'Failed to toggle featured status');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to toggle featured status');
   }
@@ -962,7 +1035,7 @@ export async function getAdminMentorshipApplications(params?: {
   if (params?.programmeId) query.set('programmeId', params.programmeId);
   if (params?.search) query.set('search', params.search);
 
-  const res = await fetch(`/api/mentorship/admin/applications?${query.toString()}`, {
+  const res = await apiFetch(`/api/mentorship/admin/applications?${query.toString()}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
@@ -976,12 +1049,12 @@ export async function updateMentorshipApplicationStatus(
   status: MentorshipApplicationStatus,
   notes?: string
 ): Promise<MentorshipApplication> {
-  const res = await fetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}/status`, {
+  const res = await apiFetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ status, notes }),
   });
-  const data = await res.json();
+  const data = await parseJsonSafe<MentorshipApplication & { error?: string }>(res, 'Failed to update application status');
   if (!res.ok) {
     throw new Error(data.error || 'Failed to update application status');
   }
@@ -989,15 +1062,12 @@ export async function updateMentorshipApplicationStatus(
 }
 
 export async function deleteMentorshipApplication(id: string): Promise<void> {
-  const res = await fetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/api/mentorship/admin/applications/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    const data = await res.json();
+    const data = await parseJsonSafe<{ error?: string }>(res, 'Failed to delete application');
     throw new Error(data.error || 'Failed to delete application');
   }
 }
-
-
-

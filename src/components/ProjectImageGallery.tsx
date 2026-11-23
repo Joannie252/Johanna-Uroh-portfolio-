@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ProjectImage } from '../types';
-import { uploadImageFile, generateAltTextAPI } from '../lib/api';
+import { uploadImageFile, generateAltTextAPI, resolveAssetUrl } from '../lib/api';
 import {
   Upload,
   X,
@@ -293,7 +293,7 @@ export const ProjectImageGallery: React.FC<ProjectImageGalleryProps> = ({
                   {/* Thumbnail + Cover Indicator */}
                   <div className="relative w-28 h-20 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-700">
                     <img
-                      src={img.url}
+                      src={resolveAssetUrl(img.url)}
                       alt={img.alt || 'Thumbnail'}
                       className="w-full h-full object-cover"
                     />

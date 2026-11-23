@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MentorshipProgramme } from '../types';
-import { getMentorshipProgrammeBySlug, getMentorshipProgrammes } from '../lib/api';
+import { getMentorshipProgrammeBySlug, getMentorshipProgrammes, resolveAssetUrl } from '../lib/api';
 import { Link } from '../lib/router';
 import {
   ArrowLeft,
@@ -149,7 +149,7 @@ export const MentorshipDetailPage: React.FC<MentorshipDetailProps> = ({ slug }) 
             {/* Programme Cover Image */}
             <div className="relative aspect-[16/10] rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-xl bg-zinc-100 dark:bg-zinc-800">
               <img
-                src={programme.coverImage}
+                src={resolveAssetUrl(programme.coverImage)}
                 alt={programme.name}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"

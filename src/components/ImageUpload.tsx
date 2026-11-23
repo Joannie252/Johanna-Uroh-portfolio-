@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Check, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { uploadImageFile } from '../lib/api';
+import { uploadImageFile, resolveAssetUrl } from '../lib/api';
 
 interface ImageUploadProps {
   label: string;
@@ -91,7 +91,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       {preview ? (
         <div className="relative rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 aspect-[16/9] max-h-64 group">
           <img
-            src={preview}
+            src={resolveAssetUrl(preview)}
             alt={altText || 'Uploaded preview'}
             className="w-full h-full object-cover"
           />

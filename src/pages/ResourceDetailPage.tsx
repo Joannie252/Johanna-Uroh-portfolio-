@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
-import { getProductBySlug, getProducts } from '../lib/api';
+import { getProductBySlug, getProducts, resolveAssetUrl } from '../lib/api';
 import { Link } from '../lib/router';
 import {
   ArrowLeft,
@@ -145,7 +145,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
             {/* Product Cover Image */}
             <div className="relative aspect-[16/10] rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-xl bg-zinc-100 dark:bg-zinc-800">
               <img
-                src={product.coverImage}
+                src={resolveAssetUrl(product.coverImage)}
                 alt={product.title}
                 className="w-full h-full object-cover"
               />
@@ -366,7 +366,7 @@ export const ResourceDetailPage: React.FC<ResourceDetailPageProps> = ({ slug }) 
                 >
                   <div className="aspect-[16/10] rounded-xl overflow-hidden mb-3 bg-zinc-100 dark:bg-zinc-800">
                     <img
-                      src={p.coverImage}
+                      src={resolveAssetUrl(p.coverImage)}
                       alt={p.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />

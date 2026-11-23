@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project } from '../types';
-import { getProjectBySlug, getProjects } from '../lib/api';
+import { getProjectBySlug, getProjects, resolveAssetUrl } from '../lib/api';
 import { ProjectCard } from '../components/ProjectCard';
 import { Link, useRouter } from '../lib/router';
 import {
@@ -155,7 +155,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
         {/* Hero Cover Image */}
         <div className="relative aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 mb-12">
           <img
-            src={project.coverImage || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'}
+            src={resolveAssetUrl(project.coverImage) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'}
             alt={project.title}
             className="w-full h-full object-cover"
           />
@@ -315,7 +315,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
                     className="cursor-pointer group relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 aspect-[16/10]"
                   >
                     <img
-                      src={img.url}
+                      src={resolveAssetUrl(img.url)}
                       alt={img.alt || project.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -388,7 +388,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ slug }) =>
         >
           <div className="max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl">
             <img
-              src={selectedGalleryImg}
+              src={resolveAssetUrl(selectedGalleryImg)}
               alt="Expanded preview"
               className="w-full h-full object-contain"
             />

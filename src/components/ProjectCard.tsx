@@ -1,6 +1,7 @@
 import React from 'react';
 import { Project } from '../types';
 import { Link } from '../lib/router';
+import { resolveAssetUrl } from '../lib/api';
 import { ArrowRight, Calendar, Sparkles } from 'lucide-react';
 
 interface ProjectCardProps {
@@ -17,7 +18,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, featured }) =
       {/* Cover Image */}
       <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100 dark:bg-zinc-800">
         <img
-          src={project.coverImage || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'}
+          src={resolveAssetUrl(project.coverImage) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop'}
           alt={project.title}
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
