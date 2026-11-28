@@ -2,17 +2,13 @@ import { Project, ServiceItem, TestimonialItem, ExperienceItem, ContactMessage, 
 
 const TOKEN_KEY = 'johanna_admin_token';
 
-// Centralized API base URL for split Vercel frontend + Cloud Run CMS deployments.
-// Empty string preserves relative same-origin requests in local dev and Google AI Studio.
-const RAW_API_BASE_URL = (import.meta.env.VITE_API_URL || '').trim();
-export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
+export const API_BASE_URL = '';
 
 export function apiUrl(endpoint: string): string {
   if (/^https?:\/\//i.test(endpoint)) {
     return endpoint;
   }
-  const normalizedPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
+  return endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 }
 
 export function resolveAssetUrl(url?: string | null): string {
@@ -23,8 +19,7 @@ export function resolveAssetUrl(url?: string | null): string {
     return trimmed;
   }
   if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
-    const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    return API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   }
   return trimmed;
 }
@@ -62,9 +57,9 @@ async function apiFetch(endpoint: string, init?: RequestInit): Promise<Response>
   const contentType = (res.headers.get('content-type') || '').toLowerCase();
   if (res.ok && contentType.includes('text/html') && !endpoint.includes('/stream')) {
     console.error(
-      `[API Format Error] ${method} ${url} returned HTML (HTTP ${res.status}) instead of JSON. Check VITE_API_URL configuration.`
+      `[API Format Error] ${method} ${url} returned HTML (HTTP ${res.status}) instead of JSON.`
     );
-    throw new Error('CMS API returned HTML instead of JSON. Verify VITE_API_URL points to the backend service.');
+    throw new Error('CMS API returned HTML instead of JSON.');
   }
 
   if (!res.ok) {

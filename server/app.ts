@@ -20,56 +20,6 @@ import { seedDatabase } from './seed.js';
 
 const app = express();
 
-// Secure CORS configuration for Vercel frontend <-> Cloud Run CMS
-const DEFAULT_ALLOWED_ORIGINS = [
-  'https://johanna-uroh-portfolio-5gpr83qtd-joannie1.vercel.app',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-];
-
-function normalizeOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
-}
-
-const configuredOrigins = (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map(normalizeOrigin)
-  .filter(Boolean);
-
-const appOrigin = process.env.APP_URL ? [normalizeOrigin(process.env.APP_URL)] : [];
-
-const allowedOrigins = new Set<string>([
-  ...DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin),
-  ...configuredOrigins,
-  ...appOrigin,
-]);
-
-app.use((req, res, next) => {
-  const rawOrigin = req.headers.origin;
-  if (rawOrigin) {
-    const origin = normalizeOrigin(rawOrigin);
-    if (allowedOrigins.has(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Vary', 'Origin');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.setHeader('Access-Control-Max-Age', '86400');
-    } else if (req.method === 'OPTIONS') {
-      res.status(403).json({ error: 'CORS origin not allowed' });
-      return;
-    }
-  }
-
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(204);
-    return;
-  }
-
-  next();
-});
-
 // Ensure upload directory exists
 const uploadDir = path.resolve(process.cwd(), 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
